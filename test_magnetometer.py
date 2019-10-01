@@ -1,4 +1,4 @@
-import smbus
+import smbus, time, math
 
 b = smbus.SMBus(1)
 
@@ -9,6 +9,10 @@ def read (x):
 
 def write(a, v):
     b.write_byte_data(address, a, v)
+
+def read_component(register):
+    unsigned = b.read_word_data(address, register)
+    return (unsigned & 0x7fff) - (unsigned & 0x8000)
 
 write(0x1b, 0xc2)
 write(0x5c, 0x00)
@@ -25,8 +29,7 @@ for wk_dat in range(0, 96):
     while read(0x18) == 0:
         pass
 
-    datax = b.read_word_data(address, 0x10)
-    datax = (datax & 0x7fff) - (datax & 0x8000)
+    datax = read_component(0x10)
     print("datax", datax)
 
     if diff_x > abs(datax):
@@ -34,5 +37,16 @@ for wk_dat in range(0, 96):
         diff_x = abs(datax)
 
 print ("best offset", best)
-
 write(0x6c, best)
+
+while True:
+    write(0x1d, 0x40)
+
+    while read(0x18) == 0:
+        pass
+
+    x = read_component(0x10)
+    y = read_component(0x12)
+    z = read_component(0x14)
+    print(x, y, z, math.sqrt(x*x + y*y + z*z))
+    time.sleep(0.1)
