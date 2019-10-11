@@ -19,6 +19,7 @@ public:
   SineCounter name(data, sizeof(data))
 
 SINE_COUNTER(s70, sine70Hz);
+SINE_COUNTER(s45, sine45Hz);
 
 void setup() {
   pinMode(3, OUTPUT);
@@ -36,6 +37,7 @@ void setup() {
 }
 
 ISR(TIMER2_OVF_vect) {
+  OCR2A = s45.next();
   OCR2B = s70.next();
 }
 
