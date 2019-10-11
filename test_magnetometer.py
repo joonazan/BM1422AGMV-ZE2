@@ -20,33 +20,34 @@ write(0x5d, 0x00)
 
 write(0x1c, 0x0c)
 
-diff_x = 9999
+def adjust_offset():
+    x = 9999
 
-for wk_dat in range(0, 96):
-    write(0x6c, wk_dat)
-    write(0x1d, 0x40)
+    for wk_dat in range(1, 96):
+        write(0x6c, wk_dat)
+        write(0x1d, 0x40)
 
-    while read(0x18) == 0:
-        pass
+        while read(0x18) == 0:
+            pass
 
-    datax = read_component(0x10)
-    print("datax", datax)
+        datax = read_component(0x10)
+        print("datax", datax)
 
-    if diff_x > abs(datax):
-        best = wk_dat
-        diff_x = abs(datax)
+        if diff_x > abs(datax):
+            best = wk_dat
+            diff_x = abs(datax)
 
-print ("best offset", best)
-write(0x6c, best)
+        print ("best offset", best)
+        write(0x6c, best)
 
-while True:
-    write(0x1d, 0x40)
+with open('two_sines.txt', 'wb') as f:
+    while True:
+        write(0x1d, 0x40)
+        while read(0x18) == 0:
+            pass
 
-    while read(0x18) == 0:
-        pass
+        x = read_component(0x10)
+        y = read_component(0x12)
+        z = read_component(0x14)
 
-    x = read_component(0x10)
-    y = read_component(0x12)
-    z = read_component(0x14)
-    print(x, y, z, math.sqrt(x*x + y*y + z*z))
-    time.sleep(0.1)
+        f.write('%i %i %i \n' % (x, y, z))
