@@ -3,12 +3,12 @@ import matplotlib.pyplot as plt
 from scipy import fftpack
 
 points = []
-with open('two_sines.txt', 'rb') as f:
+with open('two_then_one.txt', 'rb') as f:
     for line in f:
         points.append(list(map(int, line.split())))
 
-x = np.array(points)[:, 0]
-sampling_rate = 400
+x = np.array(points)[:, 1]
+sampling_rate = 1000
 
 def plot():
     X = fftpack.fft(x)
@@ -30,5 +30,5 @@ def spectrogram():
     plt.show()
 
 x = x[:1000]
-plot()
-#spectrogram()
+strengths = np.abs(fftpack.fft(x))
+print(strengths[45], strengths[70])
