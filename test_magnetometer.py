@@ -23,17 +23,16 @@ write(0x5d, 0x00)
 # turn on DRDY pin
 write(0x1c, 0x0c)
 
-with open('two_sines.txt', 'wb') as f:
-    write(0x1d, 0x40)
-    while True:
-        start_time = time.time()
+write(0x1d, 0x40)
+while True:
+    start_time = time.time()
 
-        #while read(0x18) == 0:
-        #    pass
+    #while read(0x18) == 0:
+    #    pass
 
-        x = read_component(0x10)
-        y = read_component(0x12)
-        z = read_component(0x14)
+    x = read_component(0x10)
+    y = read_component(0x12)
+    z = read_component(0x14)
 
-        print time.time() - start_time
-        print '%i %i %i \n' % (x, y, z)
+    print time.time() - start_time
+    print '%i %i %i \n' % (x, y, z)
