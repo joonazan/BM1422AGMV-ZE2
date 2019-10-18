@@ -29,6 +29,11 @@ def spectrogram():
     plt.xlabel('time [sec]')
     plt.show()
 
+'''
+The dft bins are centered around n * sampling_frequency / number_of_samples
+Here we have conveniently selected a number of samples equal to the sampling
+frequency.
+'''
 x = x[:1000]
 strengths = np.abs(fftpack.fft(x))
 print(strengths[45], strengths[70])
