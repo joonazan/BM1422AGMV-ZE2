@@ -20,6 +20,14 @@ int select_register(int file, uint8_t reg) {
   return 0;
 }
 
+int write_register(int file, uint8_t reg, uint8_t value) {
+  uint8_t buf[] = {reg, value};
+  if (write(file, &buf, 2) != 2) {
+    return 1;
+  }
+  return 0;
+}
+
 int main() {
   int file = open("/dev/i2c-1", O_RDWR);
 
@@ -33,24 +41,20 @@ int main() {
     return 1;
   }
 
-  uint8_t setup[] =
-    {
-     // continous 14-bit measurement at 1kHz
-     0x1b, 0b11011000,
+  if (
+      /* continous 14-bit measurement at 1kHz */
+      write_register(file, 0x1b, 0b11011000) ||
 
-     0x5c, 0x00,
-     0x5d, 0x00,
+      write_register(file, 0x5c, 0x00) ||
+      write_register(file, 0x5d, 0x00) ||
 
-     // turn on DRDY pin
-     0x1c, 0x0c,
+      // turn on DRDY pin
+      write_register(file, 0x1c, 0x0c) ||
 
-     // start measuring
-     0x1d, 0x40,
-    };
+      // start measuring
+      write_register(file, 0x1d, 0x40)) {
 
-  if (write(file, setup, sizeof(setup)) != sizeof(setup)) {
-    printf("failed to write magnetometer settings\n");
-    return 1;
+    printf("failed to write measurement settings\n");
   }
 
   uint8_t drdy = 0;
