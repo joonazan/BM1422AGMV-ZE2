@@ -18,27 +18,39 @@ public:
 #define SINE_COUNTER(name, data) \
   SineCounter name(data, sizeof(data))
 
-SINE_COUNTER(s70, sine70Hz);
-SINE_COUNTER(s45, sine45Hz);
+SINE_COUNTER(s1, sine45Hz);
+SINE_COUNTER(s2, sine65Hz);
+SINE_COUNTER(s3, sine75Hz);
+SINE_COUNTER(s4, sine90Hz);
 
 void setup() {
-  pinMode(3, OUTPUT);
-  pinMode(11, OUTPUT);
   // Timer 2
-  // Mode
+  pinMode(11, OUTPUT);
+  pinMode(3, OUTPUT);
+  // Fast PWM, 0 to OCR2(A/B) is high
   TCCR2A = _BV(COM2A1) | _BV(COM2B1) | _BV(WGM21) | _BV(WGM20);
-  // Speed
+  // No prescaling
   TCCR2B = _BV(CS20);
-  // Duty cycles
-  OCR2A = 128;
-  OCR2B = 128;
-
+  // Enable interrupt on timer overflow
   TIMSK2 = 1;
+
+  // Timer 0
+  pinMode(5, OUTPUT);
+  pinMode(6, OUTPUT);
+  // Fast PWM, 0 to OCR0(A/B) is high
+  TCCR0A = _BV(COM0A1) | _BV(COM0B1) | _BV(WGM01) | _BV(WGM00);
+  // No prescaling
+  TCCR0B = _BV(CS00);
 }
 
 ISR(TIMER2_OVF_vect) {
-  OCR2A = s45.next();
-  OCR2B = s70.next();
+  // Timer 2 PWM
+  OCR2A = s1.next();
+  OCR2B = s2.next();
+
+  // Timer 0 PWM
+  OCR0A = s3.next();
+  OCR0B = s4.next();
 }
 
 void loop() {
