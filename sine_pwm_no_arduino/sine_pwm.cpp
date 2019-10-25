@@ -78,7 +78,7 @@ int main() {
   while (true) {}
 }
 
-ISR(TIMER2_OVF_vect) {
+ISR(TIMER2_OVF_vect, ISR_NAKED) {
   // Timer 2 PWM
   OCR2A = s1.next();
   OCR2B = s2.next();
@@ -86,4 +86,6 @@ ISR(TIMER2_OVF_vect) {
   // Timer 0 PWM
   OCR0A = s3.next();
   OCR0B = s4.next();
+
+  asm("reti");
 }
