@@ -29,32 +29,34 @@ constexpr Table<N> sine_table() {
   return t;
 }
 
-class SineLoop {
-  volatile uint16_t index{0};
-  const uint8_t* table;
-  const uint16_t len;
+#define SINE_SETUP(name, reg, freq) \
+  static const PROGMEM Table<table_len(freq)> table_##name = sine_table<table_len(freq)>(); \
+  register const uint8_t *table_ptr_##name asm(reg); \
+  static constexpr const uint8_t *table_start_##name = table_##name.values; \
+  static constexpr const uint8_t *table_end_##name = table_##name.values + table_len(freq);
 
-public:
-  SineLoop(const uint8_t* t, uint16_t l) : table(t), len(l) {}
+#define TABLE_PTR_INIT(name) table_ptr_##name = table_start_##name;
 
-  inline uint8_t next() {
-    if (++index == len) {
-      index = 0;
-    }
-    return pgm_read_byte(table + index);
+#define SINE_VALUE(name) \
+  pgm_read_byte(table_ptr_##name)
+
+#define SINE_STEP(name) \
+  table_ptr_##name++; \
+  if (table_ptr_##name == table_end_##name) { \
+    table_ptr_##name = table_start_##name; \
   }
-};
 
-#define SINE_LOOP(name, freq) \
-  static const PROGMEM Table<table_len(freq)> table##freq = sine_table<table_len(freq)>(); \
-  static SineLoop name(table##freq.values, table_len(freq));
-
-SINE_LOOP(s1, 45)
-SINE_LOOP(s2, 65)
-SINE_LOOP(s3, 80)
-SINE_LOOP(s4, 95)
+SINE_SETUP(a, "r2", 45)
+SINE_SETUP(b, "r4", 65)
+SINE_SETUP(c, "r6", 80)
+SINE_SETUP(d, "r8", 95)
 
 int main() {
+  TABLE_PTR_INIT(a)
+  TABLE_PTR_INIT(b)
+  TABLE_PTR_INIT(c)
+  TABLE_PTR_INIT(d)
+
   // Set pin 11 to output
   DDRB |= _BV(DDB3);
   // Set pins 3, 5 and 6 to output
@@ -80,12 +82,17 @@ int main() {
 
 ISR(TIMER2_OVF_vect, ISR_NAKED) {
   // Timer 2 PWM
-  OCR2A = s1.next();
-  OCR2B = s2.next();
+  OCR2A = SINE_VALUE(a);
+  OCR2B = SINE_VALUE(b);
 
   // Timer 0 PWM
-  OCR0A = s3.next();
-  OCR0B = s4.next();
+  OCR0A = SINE_VALUE(c);
+  OCR0B = SINE_VALUE(d);
+
+  SINE_STEP(a);
+  SINE_STEP(b);
+  SINE_STEP(c);
+  SINE_STEP(d);
 
   asm("reti");
 }
