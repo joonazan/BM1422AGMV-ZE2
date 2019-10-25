@@ -1,27 +1,78 @@
 #include <stdint.h>
-#include "sines.h"
 
-class SineCounter {
+// I need to define enable_if, as there is no STL for AVR
+
+template<bool B, class T = void>
+struct enable_if {};
+
+template<class T>
+struct enable_if<true, T> { typedef T type; };
+
+
+template <int N>
+struct Table {
+  uint8_t values[N];
+};
+
+constexpr int table_len(int freq) {
+  return 16000000 / (256 * freq);
+}
+
+constexpr uint8_t table_at(int i, int N) {
+  return (sin((float)i / (float)N * 2 * PI) * 0.5 + 0.5) * 255;
+}
+
+// Compile time code that constructs a sine lookup table of length N
+// The maximum template nesting is 900 in the Arduino IDE, which is
+// why I did not simply use the simplest possible recursion scheme
+// This would be a lot easier in C++14, so building without Arduino
+// should be considered.
+
+template <int N, uint8_t ...Vals>
+constexpr
+typename enable_if<N==sizeof...(Vals),Table<N>>::type
+sine_table() {
+  return {{Vals...}};
+}
+
+template <int N, uint8_t ...Vals>
+constexpr
+typename enable_if<N-1==sizeof...(Vals), Table<N>>::type
+sine_table() {
+  return sine_table<N, Vals..., table_at(sizeof...(Vals), N)>();
+}
+
+template <int N, uint8_t ...Vals>
+constexpr
+typename enable_if<(N-sizeof...(Vals) > 1), Table<N>>::type
+sine_table() {
+  return sine_table<N, Vals..., table_at(sizeof...(Vals), N), table_at(sizeof...(Vals)+1, N)>();
+}
+
+class SineLoop {
   volatile uint16_t index{0};
-  uint8_t *table;
-  uint16_t len;
+  const uint8_t* table;
+  const uint16_t len;
+
 public:
-  SineCounter(uint8_t *t, uint16_t l) : table(t), len(l) {}
-  uint8_t next() {
+  SineLoop(const uint8_t* t, uint16_t l) : table(t), len(l) {}
+
+  inline uint8_t next() {
     if (++index == len) {
       index = 0;
     }
-    return table[index];
+    return pgm_read_byte(table + index);
   }
 };
 
-#define SINE_COUNTER(name, data) \
-  SineCounter name(data, sizeof(data))
+#define SINE_LOOP(name, freq) \
+  static const PROGMEM Table<table_len(freq)> table##freq = sine_table<table_len(freq)>(); \
+  static SineLoop name(table##freq.values, table_len(freq));
 
-SINE_COUNTER(s1, sine45Hz);
-SINE_COUNTER(s2, sine65Hz);
-SINE_COUNTER(s3, sine75Hz);
-SINE_COUNTER(s4, sine90Hz);
+SINE_LOOP(s1, 45)
+SINE_LOOP(s2, 65)
+SINE_LOOP(s3, 80)
+SINE_LOOP(s4, 95)
 
 void setup() {
   // Timer 2
@@ -49,8 +100,8 @@ ISR(TIMER2_OVF_vect) {
   OCR2B = s2.next();
 
   // Timer 0 PWM
-  OCR0A = s3.next();
-  OCR0B = s4.next();
+  //OCR0A = s3.next();
+  //OCR0B = s4.next();
 }
 
 void loop() {
