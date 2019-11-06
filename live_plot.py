@@ -17,8 +17,8 @@ ax.set_aspect(1)
 
 circles = [
     plt.Circle((0,0), fill=False, radius=0.1),
-    plt.Circle((0.175,0), fill=False, radius=0.1),
-    plt.Circle((0.085, 0.22), fill=False, radius=0.1)
+    plt.Circle((1.8,0), fill=False, radius=0.1),
+    plt.Circle((0.9, 0.21), fill=False, radius=0.1)
 ]
 
 for circle in circles:
