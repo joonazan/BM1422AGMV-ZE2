@@ -1,0 +1,9 @@
+[package]
+name = "haarukointi"
+version = "0.1.0"
+authors = ["Saarhelo Joonatan <joonatan.saarhelo.aalto.fi>"]
+edition = "2018"
+
+[dependencies]
+rustfft = "3.0"
+arrayvec = "0.5"
