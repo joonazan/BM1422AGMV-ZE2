@@ -1,8 +1,10 @@
 use arrayvec::ArrayVec;
+use piston_window::WindowSettings;
 use plotters::prelude::*;
 use rustfft::num_complex::Complex;
 use rustfft::num_traits::{Pow, Zero};
 use rustfft::FFTplanner;
+use std::collections::VecDeque;
 
 fn field_strengths_for_one_axis(xs: &mut [Complex<f64>]) -> ArrayVec<[f64; 3]> {
     let fft = FFTplanner::new(false).plan_fft(1000);
@@ -121,30 +123,9 @@ impl Rectangle {
 }
 
 fn main() {
-    let root = BitMapBackend::new("plot.png", (1024, 768)).into_drawing_area();
-
-    root.fill(&WHITE).unwrap();
-
-    let root = root
-        .titled("Possible Locations", ("sans-serif", 60))
-        .unwrap()
-        .shrink(((1024 - 700) / 2, 0), (700, 700));
-
-    let draw_rect = |r: &Rectangle, color| {
-        let style = ShapeStyle {
-            color,
-            filled: false,
-            stroke_width: 2,
-        };
-
-        fn convert(x: Complex<f64>) -> (i32, i32) {
-            let x = x * 30.0;
-            (x.re as i32 + 300, x.im as i32 + 300)
-        }
-
-        let r = plotters::prelude::Rectangle::new([convert(r.start), convert(r.end)], style);
-        root.draw(&r).unwrap();
-    };
+    let mut window = WindowSettings::new("Possible Locations", [1024, 768])
+        .build()
+        .unwrap();
 
     let offsets: [Complex<f64>; 3] = [
         Complex::new(0.0, 0.0),
@@ -156,19 +137,41 @@ fn main() {
         end: Complex::new(10.0, 10.0),
     };
 
-    draw_rect(&search_area, BLACK.to_rgba());
-    offsets.iter().for_each(|s| {
-        let r = Complex::new(0.2, 0.2);
-        draw_rect(
-            &Rectangle {
-                start: s - r,
-                end: s + r,
-            },
-            BLACK.to_rgba(),
-        );
-    });
+    let mut previous_positions: VecDeque<Vec<Rectangle>> = vec![vec![]; 20].into();
 
-    for _ in 0..60 {
+    while let Some(_) = draw_piston_window(&mut window, |b| {
+        let root = b.into_drawing_area();
+        root.fill(&WHITE).unwrap();
+        let root = root.shrink(((1024 - 700) / 2, 0), (700, 700));
+
+        let draw_rect = |r: &Rectangle, color| {
+            let style = ShapeStyle {
+                color,
+                filled: false,
+                stroke_width: 2,
+            };
+
+            fn convert(x: Complex<f64>) -> (i32, i32) {
+                let x = x * 30.0;
+                (x.re as i32 + 300, x.im as i32 + 300)
+            }
+
+            let r = plotters::prelude::Rectangle::new([convert(r.start), convert(r.end)], style);
+            root.draw(&r).unwrap();
+        };
+
+        draw_rect(&search_area, BLACK.to_rgba());
+        offsets.iter().for_each(|s| {
+            let r = Complex::new(0.2, 0.2);
+            draw_rect(
+                &Rectangle {
+                    start: s - r,
+                    end: s + r,
+                },
+                BLACK.to_rgba(),
+            );
+        });
+
         let strengths = get_field_strengths_squared();
         let mut rects = vec![search_area.clone()];
 
@@ -193,8 +196,15 @@ fn main() {
             rects = new;
         }
 
-        for r in rects {
-            draw_rect(&r, BLUE.to_rgba());
+        previous_positions.pop_front();
+        previous_positions.push_back(rects);
+
+        for rs in &previous_positions {
+            for r in rs {
+                draw_rect(&r, BLUE.to_rgba());
+            }
         }
-    }
+
+        Ok(())
+    }) {}
 }
