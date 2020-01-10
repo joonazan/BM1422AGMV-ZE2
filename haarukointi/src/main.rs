@@ -162,7 +162,7 @@ fn main() {
 
         draw_rect(&search_area, BLACK.to_rgba());
         magnet_positions.iter().for_each(|s| {
-            let r = Complex::new(0.2, 0.2);
+            let r = Complex::new(1.0, 1.0) * config.max_distance / 100.0;
             draw_rect(
                 &Rectangle {
                     start: s - r,
