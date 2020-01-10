@@ -1,0 +1,9 @@
+(
+  magnets: [
+    (frequency: 45, position: (0, 0)),
+    (frequency: 65, position: (5, 0)),
+    (frequency: 80, position: (5, 5)),
+  ],
+  max_distance: 10,
+  magnet_strength: 2000000000,
+)

@@ -1,23 +1,12 @@
-use arrayvec::ArrayVec;
 use piston_window::WindowSettings;
 use plotters::prelude::*;
 use rustfft::num_complex::Complex;
 use rustfft::num_traits::{Pow, Zero};
 use rustfft::FFTplanner;
 use std::collections::VecDeque;
+mod config;
 
-fn field_strengths_for_one_axis(xs: &mut [Complex<f64>]) -> ArrayVec<[f64; 3]> {
-    let fft = FFTplanner::new(false).plan_fft(1000);
-    let mut out = [Complex::zero(); 1000];
-    fft.process(xs, &mut out);
-
-    [45, 65, 80]
-        .iter()
-        .map(|&i| (out[i] / 1000.0).norm_sqr())
-        .collect::<ArrayVec<[_; 3]>>()
-}
-
-fn get_field_strengths_squared() -> [f64; 3] {
+fn get_field_strengths_squared(frequencies: &[usize]) -> [f64; 3] {
     let mut axes = [[Complex::zero(); 1000]; 3];
 
     for i in 0..1000 {
@@ -33,9 +22,17 @@ fn get_field_strengths_squared() -> [f64; 3] {
         }
     }
 
+    let fft = FFTplanner::new(false).plan_fft(1000);
+    let mut out = [Complex::zero(); 1000];
+
     let mut sum = [0.0; 3];
     for a in &mut axes {
-        for (i, x) in field_strengths_for_one_axis(a).iter().enumerate() {
+        fft.process(a, &mut out);
+        for (i, x) in frequencies
+            .iter()
+            .map(|&i| (out[i] / 1000.0).norm_sqr())
+            .enumerate()
+        {
             sum[i] += x;
         }
     }
@@ -50,7 +47,7 @@ struct Rectangle {
 }
 
 fn field_strength(p: &Complex<f64>) -> f64 {
-    2_000_000_000.0 * p.norm_sqr().sqrt().pow(-6)
+    p.norm_sqr().sqrt().pow(-6)
 }
 
 impl Rectangle {
@@ -127,14 +124,15 @@ fn main() {
         .build()
         .unwrap();
 
-    let offsets: [Complex<f64>; 3] = [
-        Complex::new(0.0, 0.0),
-        Complex::new(-5.0, 0.0),
-        Complex::new(-5.0, -5.0),
-    ];
+    let config = config::load_config();
+
+    let magnet_positions = config.magnets.iter().map(|x| Complex::new(x.position.0, x.position.1)).collect::<Vec<Complex<f64>>>();
+    let offsets: Vec<Complex<f64>> = magnet_positions.iter().map(|x| -x).collect();
+    let frequencies: Vec<usize> = config.magnets.iter().map(|x| x.frequency).collect();
+
     let search_area = Rectangle {
-        start: Complex::new(-10.0, -10.0),
-        end: Complex::new(10.0, 10.0),
+        start: Complex::new(-config.max_distance, -config.max_distance),
+        end: Complex::new(config.max_distance, config.max_distance),
     };
 
     let mut previous_positions: VecDeque<Vec<Rectangle>> = vec![vec![]; 20].into();
@@ -151,17 +149,19 @@ fn main() {
                 stroke_width: 2,
             };
 
-            fn convert(x: Complex<f64>) -> (i32, i32) {
-                let x = x * 30.0;
-                (x.re as i32 + 300, x.im as i32 + 300)
-            }
+            let convert = |x: Complex<f64>| {
+                let mul = 700.0 / (config.max_distance * 2.0);
+                let x = x * mul;
+                let offset = config.max_distance * mul;
+                ((x.re + offset) as i32, (x.im + offset) as i32)
+            };
 
             let r = plotters::prelude::Rectangle::new([convert(r.start), convert(r.end)], style);
             root.draw(&r).unwrap();
         };
 
         draw_rect(&search_area, BLACK.to_rgba());
-        offsets.iter().for_each(|s| {
+        magnet_positions.iter().for_each(|s| {
             let r = Complex::new(0.2, 0.2);
             draw_rect(
                 &Rectangle {
@@ -172,7 +172,10 @@ fn main() {
             );
         });
 
-        let strengths = get_field_strengths_squared();
+        let mut strengths = get_field_strengths_squared(&frequencies);
+        for s in &mut strengths {
+            *s /= config.magnet_strength;
+        }
         let mut rects = vec![search_area.clone()];
 
         for i in 0..100 {
