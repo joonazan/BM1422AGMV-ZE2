@@ -12,7 +12,7 @@ pub struct Config {
 #[derive(Deserialize)]
 pub struct Magnet {
     pub frequency: usize,
-    pub position: (f64, f64),
+    pub position: [f64; 3],
 }
 
 pub fn load_config() -> Config {

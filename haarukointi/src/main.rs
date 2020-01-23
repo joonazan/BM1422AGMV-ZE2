@@ -1,3 +1,4 @@
+use nalgebra::Vector3;
 use piston_window::WindowSettings;
 use plotters::prelude::*;
 use rustfft::num_complex::Complex;
@@ -40,83 +41,112 @@ fn get_field_strengths_squared(frequencies: &[usize]) -> [f64; 3] {
     sum
 }
 
-#[derive(Debug, Clone)]
-struct Rectangle {
-    start: Complex<f64>,
-    end: Complex<f64>,
+type Vec3 = Vector3<f64>;
+
+use std::ops::Range;
+type AABB = Range<Vec3>;
+
+fn field_strength(p: Vec3) -> f64 {
+    let r = p.norm();
+    let sine = (p.z / r).sin();
+    r.pow(-6) * (3.0 * sine * sine + 1.0)
 }
 
-fn field_strength(p: &Complex<f64>) -> f64 {
-    p.norm_sqr().sqrt().pow(-6)
-}
+fn field_strength_range(bb: AABB) -> Range<f64> {
+    // I have proven that the critical points of the field strength can only
+    // be on the extrema or on projections of the origin (magnet center).
+    //
+    // We need to consider all combinations of those:
+    // - the origin
+    // - projection of the origin onto a face
+    // - projection of the origin onto an edge
+    // - the vertices
 
-impl Rectangle {
-    fn contains_field_strength(&self, waldo: f64) -> bool {
-        let corners = [
-            self.start,
-            self.end,
-            Complex::new(self.start.re, self.end.im),
-            Complex::new(self.end.re, self.start.im),
-        ]
-        .iter()
-        .map(field_strength)
-        .collect::<Vec<f64>>();
-        if waldo
-            < *corners
+    let bb2 = bb.clone();
+    let vertices = vec![bb.start.x, bb.end.x].into_iter().flat_map(move |x| {
+        let bb3 = bb2.clone();
+        vec![bb2.start.y, bb2.end.y].into_iter().flat_map(move |y| {
+            vec![bb3.start.z, bb3.end.z]
+                .into_iter()
+                .map(move |z| Vec3::new(x, y, z))
+        })
+    });
+
+    fn max_field_strength(it: impl Iterator<Item = Vec3>) -> f64 {
+        it.map(field_strength)
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap()
+    }
+
+    let zero_in_x = (bb.start.x..bb.end.x).contains(&0.0);
+    let zero_in_y = (bb.start.y..bb.end.y).contains(&0.0);
+    let zero_in_z = (bb.start.z..bb.end.z).contains(&0.0);
+
+    let max = match (zero_in_x, zero_in_y, zero_in_z) {
+        (true, true, true) => std::f64::INFINITY,
+
+        (true, true, false) => max_field_strength(
+            [bb.start.z, bb.end.z]
                 .iter()
-                .min_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap()
-        {
-            return false;
+                .map(|&z| Vec3::new(0.0, 0.0, z)),
+        ),
+        (true, false, true) => max_field_strength(
+            [bb.start.y, bb.end.y]
+                .iter()
+                .map(|&y| Vec3::new(0.0, y, 0.0)),
+        ),
+        (false, true, true) => max_field_strength(
+            [bb.start.x, bb.end.x]
+                .iter()
+                .map(|&x| Vec3::new(x, 0.0, 0.0)),
+        ),
+
+        (true, false, false) => {
+            max_field_strength(vec![bb.start.y, bb.end.y].into_iter().flat_map(|y| {
+                vec![bb.start.z, bb.end.z]
+                    .into_iter()
+                    .map(move |z| Vec3::new(0.0, y, z))
+            }))
         }
-
-        let zero_in_x = self.start.re < 0.0 && 0.0 < self.end.re;
-        let zero_in_y = self.start.im < 0.0 && 0.0 < self.end.im;
-
-        zero_in_x && zero_in_y
-            || zero_in_x
-                && (waldo < field_strength(&Complex::new(0.0, self.start.im))
-                    || waldo < field_strength(&Complex::new(0.0, self.end.im)))
-            || zero_in_y
-                && (waldo < field_strength(&Complex::new(self.start.re, 0.0))
-                    || waldo < field_strength(&Complex::new(self.end.re, 0.0)))
-            || waldo
-                < *corners
-                    .iter()
-                    .max_by(|a, b| a.partial_cmp(b).unwrap())
-                    .unwrap()
-    }
-
-    fn subdivide(&self) -> Vec<Rectangle> {
-        let mid_x = (self.start.re + self.end.re) / 2.0;
-        let mid_y = (self.start.im + self.end.im) / 2.0;
-
-        vec![
-            Rectangle {
-                start: self.start,
-                end: Complex::new(mid_x, mid_y),
-            },
-            Rectangle {
-                start: Complex::new(self.start.re, mid_y),
-                end: Complex::new(mid_x, self.end.im),
-            },
-            Rectangle {
-                start: Complex::new(mid_x, mid_y),
-                end: self.end,
-            },
-            Rectangle {
-                start: Complex::new(mid_x, self.start.im),
-                end: Complex::new(self.end.re, mid_y),
-            },
-        ]
-    }
-
-    fn offset(&self, v: &Complex<f64>) -> Rectangle {
-        Rectangle {
-            start: self.start + v,
-            end: self.end + v,
+        (false, true, false) => {
+            max_field_strength(vec![bb.start.x, bb.end.x].into_iter().flat_map(|x| {
+                vec![bb.start.z, bb.end.z]
+                    .into_iter()
+                    .map(move |z| Vec3::new(x, 0.0, z))
+            }))
         }
-    }
+        (false, false, true) => {
+            max_field_strength(vec![bb.start.x, bb.end.x].into_iter().flat_map(|x| {
+                vec![bb.start.y, bb.end.y]
+                    .into_iter()
+                    .map(move |y| Vec3::new(x, y, 0.0))
+            }))
+        }
+        (false, false, false) => max_field_strength(vertices.clone()),
+    };
+
+    vertices
+        .map(field_strength)
+        .min_by(|a, b| a.partial_cmp(b).unwrap())
+        .unwrap()..max
+}
+
+fn subdivide(bb: &AABB) -> impl Iterator<Item = AABB> {
+    let off = 0.5 * (bb.end - bb.start);
+    let base = bb.start..(bb.start + off);
+    vec![0.0, off.x].into_iter().flat_map(move |off_x| {
+        let b = base.clone();
+        vec![0.0, off.y].into_iter().flat_map(move |off_y| {
+            let b2 = b.clone();
+            vec![0.0, off.z]
+                .into_iter()
+                .map(move |off_z| offset(&b2, &Vec3::new(off_x, off_y, off_z)))
+        })
+    })
+}
+
+fn offset(bb: &AABB, v: &Vec3) -> AABB {
+    bb.start + v..bb.end + v
 }
 
 fn main() {
@@ -126,34 +156,44 @@ fn main() {
 
     let config = config::load_config();
 
-    let magnet_positions = config.magnets.iter().map(|x| Complex::new(x.position.0, x.position.1)).collect::<Vec<Complex<f64>>>();
-    let offsets: Vec<Complex<f64>> = magnet_positions.iter().map(|x| -x).collect();
+    let magnet_positions = config
+        .magnets
+        .iter()
+        .map(|x| x.position.into())
+        .collect::<Vec<Vec3>>();
+    let offsets: Vec<Vec3> = magnet_positions.iter().map(|x| -x).collect();
     let frequencies: Vec<usize> = config.magnets.iter().map(|x| x.frequency).collect();
 
-    let search_area = Rectangle {
-        start: Complex::new(-config.max_distance, -config.max_distance),
-        end: Complex::new(config.max_distance, config.max_distance),
-    };
+    let search_area = Vec3::new(
+        -config.max_distance,
+        -config.max_distance,
+        -config.max_distance,
+    )
+        ..Vec3::new(
+            config.max_distance,
+            config.max_distance,
+            config.max_distance,
+        );
 
-    let mut previous_positions: VecDeque<Vec<Rectangle>> = vec![vec![]; 20].into();
+    //let mut previous_positions: VecDeque<Vec3> = vec![vec![]; 20].into();
 
     while let Some(_) = draw_piston_window(&mut window, |b| {
         let root = b.into_drawing_area();
         root.fill(&WHITE).unwrap();
         let root = root.shrink(((1024 - 700) / 2, 0), (700, 700));
 
-        let draw_rect = |r: &Rectangle, color| {
+        let draw_rect = |r: &AABB, color| {
             let style = ShapeStyle {
                 color,
                 filled: false,
                 stroke_width: 2,
             };
 
-            let convert = |x: Complex<f64>| {
+            let convert = |x: Vec3| {
                 let mul = 700.0 / (config.max_distance * 2.0);
                 let x = x * mul;
                 let offset = config.max_distance * mul;
-                ((x.re + offset) as i32, (x.im + offset) as i32)
+                ((x.x + offset) as i32, (x.y + offset) as i32)
             };
 
             let r = plotters::prelude::Rectangle::new([convert(r.start), convert(r.end)], style);
@@ -162,14 +202,8 @@ fn main() {
 
         draw_rect(&search_area, BLACK.to_rgba());
         magnet_positions.iter().for_each(|s| {
-            let r = Complex::new(1.0, 1.0) * config.max_distance / 100.0;
-            draw_rect(
-                &Rectangle {
-                    start: s - r,
-                    end: s + r,
-                },
-                BLACK.to_rgba(),
-            );
+            let r = Vec3::new(1.0, 1.0, 1.0) * config.max_distance / 100.0;
+            draw_rect(&((s - r)..(s + r)), BLACK.to_rgba());
         });
 
         let mut strengths = get_field_strengths_squared(&frequencies);
@@ -179,12 +213,12 @@ fn main() {
         let mut rects = vec![search_area.clone()];
 
         for i in 0..100 {
-            let new: Vec<Rectangle> = rects
+            let new: Vec<AABB> = rects
                 .iter()
-                .flat_map(|x| x.subdivide().into_iter())
+                .flat_map(subdivide)
                 .filter(|rect| {
                     for (o, s) in offsets.iter().zip(&strengths) {
-                        if !rect.offset(o).contains_field_strength(*s) {
+                        if !field_strength_range(offset(rect, o)).contains(s) {
                             return false;
                         }
                     }
@@ -199,13 +233,16 @@ fn main() {
             rects = new;
         }
 
-        previous_positions.pop_front();
-        previous_positions.push_back(rects);
+        // TODO
+        /*previous_positions.pop_front();
+            previous_positions.push_back(rects);
 
-        for rs in &previous_positions {
-            for r in rs {
-                draw_rect(&r, BLUE.to_rgba());
-            }
+            for rs in &previous_positions {
+
+        }*/
+
+        for r in rects {
+            draw_rect(&r, BLUE.to_rgba());
         }
 
         Ok(())

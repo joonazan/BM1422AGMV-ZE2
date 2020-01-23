@@ -1,8 +1,8 @@
 (
   magnets: [
-    (frequency: 45, position: (0, 0)),
-    (frequency: 65, position: (0.5, 0)),
-    (frequency: 80, position: (0.5, 0.5)),
+    (frequency: 45, position: (0, 0, 0)),
+    (frequency: 65, position: (0.5, 0, 0)),
+    (frequency: 80, position: (0.5, 0.5, 0)),
   ],
   max_distance: 1,
   magnet_strength: 190,
