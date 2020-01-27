@@ -48,8 +48,13 @@ type AABB = Range<Vec3>;
 
 fn field_strength(p: Vec3) -> f64 {
     let r = p.norm();
-    let sine = (p.z / r).sin();
-    r.pow(-6) * (3.0 * sine * sine + 1.0)
+    if r == 0.0 {
+        // We can interpret zero as approaching zero from the positive side
+        std::f64::INFINITY
+    } else {
+        let sine = (p.z / r).sin();
+        r.pow(-6) * (3.0 * sine * sine + 1.0)
+    }
 }
 
 fn field_strength_range(bb: AABB) -> Range<f64> {
