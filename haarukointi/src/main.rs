@@ -7,7 +7,7 @@ use rustfft::FFTplanner;
 use std::collections::VecDeque;
 mod config;
 
-fn get_field_strengths_squared(frequencies: &[usize]) -> [f64; 3] {
+fn get_field_strengths_squared(frequencies: &[usize]) -> Vec<f64> {
     let mut axes = [[Complex::zero(); 1000]; 3];
 
     for i in 0..1000 {
@@ -26,7 +26,7 @@ fn get_field_strengths_squared(frequencies: &[usize]) -> [f64; 3] {
     let fft = FFTplanner::new(false).plan_fft(1000);
     let mut out = [Complex::zero(); 1000];
 
-    let mut sum = [0.0; 3];
+    let mut sum = vec![0.0; frequencies.len()];
     for a in &mut axes {
         fft.process(a, &mut out);
         for (i, x) in frequencies
@@ -232,7 +232,6 @@ fn main() {
                 .collect();
 
             if new.is_empty() {
-                println!("{:?}", i);
                 break;
             }
             rects = new;
