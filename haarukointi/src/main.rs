@@ -180,12 +180,13 @@ fn main() {
             config.max_distance,
         );
 
-    //let mut previous_positions: VecDeque<Vec3> = vec![vec![]; 20].into();
+    const STRENGTH_PLOT_LEN: usize = 100;
+    let mut previous_strengths: Vec<VecDeque<f64>> = vec![vec![0.0; 100].into(); frequencies.len()];
 
     while let Some(_) = draw_piston_window(&mut window, |b| {
         let root = b.into_drawing_area();
         root.fill(&WHITE).unwrap();
-        let views = root.split_evenly((1, 2));
+        let views = root.split_evenly((2, 2));
         let left_view = &views[0];
         let right_view = &views[1];
 
@@ -223,6 +224,37 @@ fn main() {
         for s in &mut strengths {
             *s /= config.magnet_strength;
         }
+
+        let mut strength_chart = ChartBuilder::on(&views[2])
+            .margin(10)
+            .caption("Magnet strengths", ("sans-serif", 30).into_font())
+            .x_label_area_size(40)
+            .y_label_area_size(50)
+            .build_ranged(0usize..STRENGTH_PLOT_LEN, 0.0..25.0)?;
+
+        strength_chart
+            .configure_mesh()
+            .x_labels(15)
+            .y_labels(5)
+            .draw()?;
+
+        for i in 0..frequencies.len() {
+            previous_strengths[i].pop_front();
+            previous_strengths[i].push_back(strengths[i].log2());
+
+            strength_chart
+                .draw_series(LineSeries::new(
+                    previous_strengths[i].iter().cloned().enumerate(),
+                    &Palette99::pick(i),
+                ))?
+                .label(format!("{} Hz", frequencies[i]))
+                .legend(move |(x, y)| {
+                    PathElement::new(vec![(x, y), (x + 20, y)], &Palette99::pick(i))
+                });
+        }
+
+        strength_chart.configure_series_labels().draw()?;
+
         let mut rects = vec![search_area.clone()];
 
         for i in 0..100 {
@@ -244,14 +276,6 @@ fn main() {
             }
             rects = new;
         }
-
-        // TODO
-        /*previous_positions.pop_front();
-            previous_positions.push_back(rects);
-
-            for rs in &previous_positions {
-
-        }*/
 
         for r in rects {
             draw_aabb(&r, BLUE.to_rgba());
