@@ -1,4 +1,4 @@
-use nalgebra::Vector3;
+use nalgebra::{Vector2, Vector3};
 use piston_window::WindowSettings;
 use plotters::prelude::*;
 use rustfft::num_complex::Complex;
@@ -185,30 +185,38 @@ fn main() {
     while let Some(_) = draw_piston_window(&mut window, |b| {
         let root = b.into_drawing_area();
         root.fill(&WHITE).unwrap();
-        let root = root.shrink(((1024 - 700) / 2, 0), (700, 700));
+        let views = root.split_evenly((1, 2));
+        let left_view = &views[0];
+        let right_view = &views[1];
 
-        let draw_rect = |r: &AABB, color| {
+        let draw_rect = |start, end, style, view: &DrawingArea<_, _>| {
+            let convert = |pos: Vector2<f64>| {
+                let mul = 700.0 / (config.max_distance * 2.0);
+                let pos = pos * mul;
+                (pos.x as i32, pos.y as i32)
+            };
+
+            let r = plotters::prelude::Rectangle::new([convert(start), convert(end)], style);
+            view.draw(&r).unwrap();
+        };
+
+        let draw_aabb = |aabb: &AABB, color| {
+            let aabb = offset(aabb, &Vec3::from_element(config.max_distance));
+
             let style = ShapeStyle {
                 color,
                 filled: false,
                 stroke_width: 2,
             };
 
-            let convert = |x: Vec3| {
-                let mul = 700.0 / (config.max_distance * 2.0);
-                let x = x * mul;
-                let offset = config.max_distance * mul;
-                ((x.x + offset) as i32, (x.y + offset) as i32)
-            };
-
-            let r = plotters::prelude::Rectangle::new([convert(r.start), convert(r.end)], style);
-            root.draw(&r).unwrap();
+            draw_rect(aabb.start.xy(), aabb.end.xy(), style.clone(), left_view);
+            draw_rect(aabb.start.xz(), aabb.end.xz(), style, right_view);
         };
 
-        draw_rect(&search_area, BLACK.to_rgba());
+        draw_aabb(&search_area, BLACK.to_rgba());
         magnet_positions.iter().for_each(|s| {
-            let r = Vec3::new(1.0, 1.0, 1.0) * config.max_distance / 100.0;
-            draw_rect(&((s - r)..(s + r)), BLACK.to_rgba());
+            let r = Vec3::from_element(config.max_distance) / 100.0;
+            draw_aabb(&((s - r)..(s + r)), BLACK.to_rgba());
         });
 
         let mut strengths = get_field_strengths_squared(&frequencies);
@@ -246,7 +254,7 @@ fn main() {
         }*/
 
         for r in rects {
-            draw_rect(&r, BLUE.to_rgba());
+            draw_aabb(&r, BLUE.to_rgba());
         }
 
         Ok(())
