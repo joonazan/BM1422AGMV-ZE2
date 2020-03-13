@@ -1,4 +1,4 @@
-#include <ArduinoBLE.h>
+#include <FastBLE.h>
 #include <Wire.h>
 
 void write_register(uint8_t slave_address, uint8_t reg, uint8_t val) {
@@ -45,57 +45,36 @@ struct FieldStrength get_reading(uint8_t slave_address) {
   return fs;
 }
 
-BLEService field_strength_service("fba38a6b-443d-406b-b95b-716234425056");
-BLETypedCharacteristic<FieldStrength> field_strength_char(
-  "c478c8cc-1287-4b01-b503-87399d9d835f",
-  BLERead | BLENotify
-);
-
 // 0xe if address select is soldered to the right
 // 0xf if address select is soldered to the left
 const uint8_t slave_address = 0xe;
 
 void setup() {
   Serial.begin(9600);
+  while(!Serial);
 
   initialize_magnetometer(slave_address);
-  pinMode(6, INPUT);
-
-  // Start bluetooth
-
-  if (!BLE.begin()) {
-    Serial.println("Bluetooth failed.");
-    while (1) {}
-  }
-
-  // This would minimize latency but it slows down transfer speed too much.
-  // It can be enabled if positions are calculated on this machine, as that
-  // reduces the bandwidth needed.
-  //BLE.setConnectionInterval(0x0006, 0x0006);
-
-  field_strength_service.addCharacteristic(field_strength_char);
-  BLE.addService(field_strength_service);
-
-  FieldStrength fs = {0};
-  field_strength_char.writeValue(fs);
-
-  BLE.setLocalName("position sensor");
-  BLE.setAdvertisedService(field_strength_service);
-  BLE.advertise();
 }
 
 void loop() {
-  auto maxdiff = 0;
-  for (int i = 0; i < 1000; i++) {
-    auto t1 = micros();
-    FieldStrength fs = {x: 1, y: 2, z: i};
-    field_strength_char.writeValue(fs);
-    BLE.poll();
-    auto t2 = micros();
-    auto diff = t2 - t1;
-    if (diff > maxdiff) {
-      maxdiff = diff;
+  auto field_strength_out = BLE.add_output<FieldStrength>(UUID_128(0x2d, 0x71, 0xa2, 0x59, 0xb4, 0x58, 0xc8, 0x12, 0x99, 0x99, 0x43, 0x95, 0x12, 0x2f, 0x46, 0x59));
+  BLE.start(UUID_128(0x2a, 0x71, 0xa2, 0x59, 0xb4, 0x58, 0xc8, 0x12, 0x99, 0x99, 0x43, 0x95, 0x12, 0x2f, 0x46, 0x59), NULL);
+
+  while (1) {
+    auto maxdiff = 0;
+    for (int i = 0; i < 1000; i++) {
+      auto t1 = micros();
+
+      field_strength_out.write(get_reading(slave_address));
+      delay(10);
+      BLE.poll();
+   
+      auto t2 = micros();
+      auto diff = t2 - t1;
+      if (diff > maxdiff) {
+        maxdiff = diff;
+      }
     }
+    Serial.println(maxdiff);
   }
-  Serial.println(maxdiff);
 }
