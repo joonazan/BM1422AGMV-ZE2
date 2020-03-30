@@ -12,7 +12,7 @@ class MyDelegate(DefaultDelegate):
 p = Peripheral("3C:71:BF:CB:1E:42")
 p.setDelegate(MyDelegate())
 
-readings = next(c for c in p.getCharacteristics() if c.uuid == UUID("c478c8cc-1287-4b01-b503-87399d9d835f"))
+readings = next(c for c in p.getCharacteristics() if c.uuid == UUID("59462f12-9543-9999-12c8-58b459a2712d"))
 
 # enable notification
 p.writeCharacteristic(readings.valHandle + 1, (1).to_bytes(2, byteorder='little'))
