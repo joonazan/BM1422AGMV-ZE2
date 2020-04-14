@@ -76,62 +76,30 @@ fn field_strength_range(bb: AABB) -> Range<f64> {
     // - projection of the origin onto an edge
     // - the vertices
 
-    fn min_abs(a: f64, b: f64) -> f64 {
-        if a.abs() < b.abs() {
-            a
+    // The maximum is at the closest critical point.
+    // This is fairly easy to see for the case where that point is on a face
+    // and the magnet's north is aligned with one of the axes.
+    // I have proved most interesting cases but presenting a rigorous proof
+    // here would is too tedious.
+
+    fn closest_to_zero(start: f64, end: f64) -> f64 {
+        if start <= 0.0 && 0.0 <= end {
+            0.0
+        } else if start > 0.0 {
+            start
         } else {
-            b
+            end
         }
     }
 
-    let zero_in_x = (bb.start().x..bb.end().x).contains(&0.0);
-    let zero_in_y = (bb.start().y..bb.end().y).contains(&0.0);
-    let zero_in_z = (bb.start().z..bb.end().z).contains(&0.0);
+    let max = field_strength(Vec3::new(
+        closest_to_zero(bb.start().x, bb.end().x),
+        closest_to_zero(bb.start().y, bb.end().y),
+        closest_to_zero(bb.start().z, bb.end().z),
+    ));
 
-    let max = match (zero_in_x, zero_in_y, zero_in_z) {
-        (true, true, true) => std::f64::INFINITY,
-
-        // The intersection with the closer face has a stronger
-        // magnetic field because the other intersection is in
-        // the same direction but further away.
-        (true, true, false) => {
-            field_strength(Vec3::new(0.0, 0.0, min_abs(bb.start().z, bb.end().z)))
-        }
-        (true, false, true) => {
-            field_strength(Vec3::new(0.0, min_abs(bb.start().y, bb.end().y), 0.0))
-        }
-        (false, true, true) => {
-            field_strength(Vec3::new(min_abs(bb.start().x, bb.end().x), 0.0, 0.0))
-        }
-
-        // The closest of the four edges perpendicular to the magnet's plane
-        // contains the point where the field is strongest.
-        // The proof is quite tedious.
-        (true, false, false) => field_strength(Vec3::new(
-            0.0,
-            min_abs(bb.start().y, bb.end().y),
-            min_abs(bb.start().z, bb.end().z),
-        )),
-        (false, true, false) => field_strength(Vec3::new(
-            min_abs(bb.start().x, bb.end().x),
-            0.0,
-            min_abs(bb.start().z, bb.end().z),
-        )),
-        (false, false, true) => field_strength(Vec3::new(
-            min_abs(bb.start().x, bb.end().x),
-            min_abs(bb.start().y, bb.end().y),
-            0.0,
-        )),
-
-        // One corner is the feature closest to the magnet and the location
-        // of the greatest field strength.
-        // The proof is similar to the previous case.
-        (false, false, false) => field_strength(Vec3::new(
-            min_abs(bb.start().x, bb.end().x),
-            min_abs(bb.start().y, bb.end().y),
-            min_abs(bb.start().z, bb.end().z),
-        )),
-    };
+    // I have proven that the minimum must be at a vertex.
+    // The furthest vertex seems intuitively correct.
 
     fn max_abs(a: f64, b: f64) -> f64 {
         if a.abs() > b.abs() {
@@ -141,16 +109,13 @@ fn field_strength_range(bb: AABB) -> Range<f64> {
         }
     }
 
-    // I have proven that the minimum must be at a vertex.
-    // The furthest vertex seems intuitively correct.
-
     let min = field_strength(Vec3::new(
         max_abs(bb.start().x, bb.end().x),
         max_abs(bb.start().y, bb.end().y),
         max_abs(bb.start().z, bb.end().z),
     ));
 
-   min .. max
+    min..max
 }
 
 #[cfg(test)]
