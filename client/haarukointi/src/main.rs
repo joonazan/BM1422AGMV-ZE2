@@ -78,10 +78,12 @@ fn field_strength_range(bb: AABB) -> Range<f64> {
         })
     });
 
-    fn max_field_strength(it: impl Iterator<Item = Vec3>) -> f64 {
-        it.map(field_strength)
-            .max_by(|a, b| a.partial_cmp(b).unwrap())
-            .unwrap()
+    fn min_abs(a: f64, b: f64) -> f64 {
+        if a.abs() < b.abs() {
+            a
+        } else {
+            b
+        }
     }
 
     let zero_in_x = (bb.start.x..bb.end.x).contains(&0.0);
@@ -91,44 +93,40 @@ fn field_strength_range(bb: AABB) -> Range<f64> {
     let max = match (zero_in_x, zero_in_y, zero_in_z) {
         (true, true, true) => std::f64::INFINITY,
 
-        (true, true, false) => max_field_strength(
-            [bb.start.z, bb.end.z]
-                .iter()
-                .map(|&z| Vec3::new(0.0, 0.0, z)),
-        ),
-        (true, false, true) => max_field_strength(
-            [bb.start.y, bb.end.y]
-                .iter()
-                .map(|&y| Vec3::new(0.0, y, 0.0)),
-        ),
-        (false, true, true) => max_field_strength(
-            [bb.start.x, bb.end.x]
-                .iter()
-                .map(|&x| Vec3::new(x, 0.0, 0.0)),
-        ),
+        // The intersection with the closer face has a stronger
+        // magnetic field because the other intersection is in
+        // the same direction but further away.
+        (true, true, false) => field_strength(Vec3::new(0.0, 0.0, min_abs(bb.start.z, bb.end.z))),
+        (true, false, true) => field_strength(Vec3::new(0.0, min_abs(bb.start.y, bb.end.y), 0.0)),
+        (false, true, true) => field_strength(Vec3::new(min_abs(bb.start.x, bb.end.x), 0.0, 0.0)),
 
-        (true, false, false) => {
-            max_field_strength(vec![bb.start.y, bb.end.y].into_iter().flat_map(|y| {
-                vec![bb.start.z, bb.end.z]
-                    .into_iter()
-                    .map(move |z| Vec3::new(0.0, y, z))
-            }))
-        }
-        (false, true, false) => {
-            max_field_strength(vec![bb.start.x, bb.end.x].into_iter().flat_map(|x| {
-                vec![bb.start.z, bb.end.z]
-                    .into_iter()
-                    .map(move |z| Vec3::new(x, 0.0, z))
-            }))
-        }
-        (false, false, true) => {
-            max_field_strength(vec![bb.start.x, bb.end.x].into_iter().flat_map(|x| {
-                vec![bb.start.y, bb.end.y]
-                    .into_iter()
-                    .map(move |y| Vec3::new(x, y, 0.0))
-            }))
-        }
-        (false, false, false) => max_field_strength(vertices.clone()),
+        // The closest of the four edges perpendicular to the magnet's plane
+        // contains the point where the field is strongest.
+        // The proof is quite tedious.
+        (true, false, false) => field_strength(Vec3::new(
+            0.0,
+            min_abs(bb.start.y, bb.end.y),
+            min_abs(bb.start.z, bb.end.z),
+        )),
+        (false, true, false) => field_strength(Vec3::new(
+            min_abs(bb.start.x, bb.end.x),
+            0.0,
+            min_abs(bb.start.z, bb.end.z),
+        )),
+        (false, false, true) => field_strength(Vec3::new(
+            min_abs(bb.start.x, bb.end.x),
+            min_abs(bb.start.y, bb.end.y),
+            0.0,
+        )),
+
+        // One corner is the feature closest to the magnet and the location
+        // of the greatest field strength.
+        // The proof is similar to the previous case.
+        (false, false, false) => field_strength(Vec3::new(
+            min_abs(bb.start.x, bb.end.x),
+            min_abs(bb.start.y, bb.end.y),
+            min_abs(bb.start.z, bb.end.z),
+        )),
     };
 
     vertices
