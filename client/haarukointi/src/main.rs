@@ -44,7 +44,7 @@ fn get_field_strengths_squared(frequencies: &[usize]) -> Vec<f64> {
 type Vec3 = Vector3<f64>;
 
 use std::ops::Range;
-type AABB = Range<Vec3>;
+type AABB = std::ops::RangeInclusive<Vec3>;
 
 fn field_strength(p: Vec3) -> f64 {
     let r = p.norm();
@@ -67,9 +67,9 @@ fn field_strength_range(bb: AABB) -> Range<f64> {
     // - projection of the origin onto an edge
     // - the vertices
 
-    let xends = vec![bb.start.x, bb.end.x].into_iter();
-    let yends = vec![bb.start.y, bb.end.y].into_iter();
-    let zends = vec![bb.start.z, bb.end.z].into_iter();
+    let xends = vec![bb.start().x, bb.end().x].into_iter();
+    let yends = vec![bb.start().y, bb.end().y].into_iter();
+    let zends = vec![bb.start().z, bb.end().z].into_iter();
 
     let vertices = xends.flat_map(|x| {
         yends.clone().flat_map({
@@ -86,9 +86,9 @@ fn field_strength_range(bb: AABB) -> Range<f64> {
         }
     }
 
-    let zero_in_x = (bb.start.x..bb.end.x).contains(&0.0);
-    let zero_in_y = (bb.start.y..bb.end.y).contains(&0.0);
-    let zero_in_z = (bb.start.z..bb.end.z).contains(&0.0);
+    let zero_in_x = (bb.start().x..bb.end().x).contains(&0.0);
+    let zero_in_y = (bb.start().y..bb.end().y).contains(&0.0);
+    let zero_in_z = (bb.start().z..bb.end().z).contains(&0.0);
 
     let max = match (zero_in_x, zero_in_y, zero_in_z) {
         (true, true, true) => std::f64::INFINITY,
@@ -96,26 +96,32 @@ fn field_strength_range(bb: AABB) -> Range<f64> {
         // The intersection with the closer face has a stronger
         // magnetic field because the other intersection is in
         // the same direction but further away.
-        (true, true, false) => field_strength(Vec3::new(0.0, 0.0, min_abs(bb.start.z, bb.end.z))),
-        (true, false, true) => field_strength(Vec3::new(0.0, min_abs(bb.start.y, bb.end.y), 0.0)),
-        (false, true, true) => field_strength(Vec3::new(min_abs(bb.start.x, bb.end.x), 0.0, 0.0)),
+        (true, true, false) => {
+            field_strength(Vec3::new(0.0, 0.0, min_abs(bb.start().z, bb.end().z)))
+        }
+        (true, false, true) => {
+            field_strength(Vec3::new(0.0, min_abs(bb.start().y, bb.end().y), 0.0))
+        }
+        (false, true, true) => {
+            field_strength(Vec3::new(min_abs(bb.start().x, bb.end().x), 0.0, 0.0))
+        }
 
         // The closest of the four edges perpendicular to the magnet's plane
         // contains the point where the field is strongest.
         // The proof is quite tedious.
         (true, false, false) => field_strength(Vec3::new(
             0.0,
-            min_abs(bb.start.y, bb.end.y),
-            min_abs(bb.start.z, bb.end.z),
+            min_abs(bb.start().y, bb.end().y),
+            min_abs(bb.start().z, bb.end().z),
         )),
         (false, true, false) => field_strength(Vec3::new(
-            min_abs(bb.start.x, bb.end.x),
+            min_abs(bb.start().x, bb.end().x),
             0.0,
-            min_abs(bb.start.z, bb.end.z),
+            min_abs(bb.start().z, bb.end().z),
         )),
         (false, false, true) => field_strength(Vec3::new(
-            min_abs(bb.start.x, bb.end.x),
-            min_abs(bb.start.y, bb.end.y),
+            min_abs(bb.start().x, bb.end().x),
+            min_abs(bb.start().y, bb.end().y),
             0.0,
         )),
 
@@ -123,9 +129,9 @@ fn field_strength_range(bb: AABB) -> Range<f64> {
         // of the greatest field strength.
         // The proof is similar to the previous case.
         (false, false, false) => field_strength(Vec3::new(
-            min_abs(bb.start.x, bb.end.x),
-            min_abs(bb.start.y, bb.end.y),
-            min_abs(bb.start.z, bb.end.z),
+            min_abs(bb.start().x, bb.end().x),
+            min_abs(bb.start().y, bb.end().y),
+            min_abs(bb.start().z, bb.end().z),
         )),
     };
 
@@ -136,8 +142,8 @@ fn field_strength_range(bb: AABB) -> Range<f64> {
 }
 
 fn subdivide(bb: &AABB) -> impl Iterator<Item = AABB> {
-    let off = 0.5 * (bb.end - bb.start);
-    let base = bb.start..(bb.start + off);
+    let off = 0.5 * (bb.end() - bb.start());
+    let base = *bb.start()..=bb.start() + off;
     vec![0.0, off.x].into_iter().flat_map(move |off_x| {
         let b = base.clone();
         vec![0.0, off.y].into_iter().flat_map(move |off_y| {
@@ -150,7 +156,7 @@ fn subdivide(bb: &AABB) -> impl Iterator<Item = AABB> {
 }
 
 fn offset(bb: &AABB, v: &Vec3) -> AABB {
-    bb.start + v..bb.end + v
+    bb.start() + v..=bb.end() + v
 }
 
 fn main() {
@@ -173,7 +179,7 @@ fn main() {
         -config.max_distance,
         -config.max_distance,
     )
-        ..Vec3::new(
+        ..=Vec3::new(
             config.max_distance,
             config.max_distance,
             config.max_distance,
@@ -209,14 +215,14 @@ fn main() {
                 stroke_width: 2,
             };
 
-            draw_rect(aabb.start.xy(), aabb.end.xy(), style.clone(), left_view);
-            draw_rect(aabb.start.xz(), aabb.end.xz(), style, right_view);
+            draw_rect(aabb.start().xy(), aabb.end().xy(), style.clone(), left_view);
+            draw_rect(aabb.start().xz(), aabb.end().xz(), style, right_view);
         };
 
         draw_aabb(&search_area, BLACK.to_rgba());
         magnet_positions.iter().for_each(|s| {
             let r = Vec3::from_element(config.max_distance) / 100.0;
-            draw_aabb(&((s - r)..(s + r)), BLACK.to_rgba());
+            draw_aabb(&((s - r)..=(s + r)), BLACK.to_rgba());
         });
 
         let mut strengths = get_field_strengths_squared(&frequencies);
