@@ -67,25 +67,14 @@ fn field_strength(p: Vec3) -> f64 {
 }
 
 fn field_strength_range(bb: AABB) -> Range<f64> {
-    // I have proven that the critical points of the field strength can only
-    // be on the extrema or on projections of the origin (magnet center).
+    // The critical points of the field strength can only be on the extrema
+    // or on projections of the origin (magnet center).
     //
-    // We need to consider all combinations of those:
+    // Critical point locations:
     // - the origin
     // - projection of the origin onto a face
     // - projection of the origin onto an edge
     // - the vertices
-
-    let xends = vec![bb.start().x, bb.end().x].into_iter();
-    let yends = vec![bb.start().y, bb.end().y].into_iter();
-    let zends = vec![bb.start().z, bb.end().z].into_iter();
-
-    let vertices = xends.flat_map(|x| {
-        yends.clone().flat_map({
-            let zends = &zends;
-            move |y| zends.clone().map(move |z| Vec3::new(x, y, z))
-        })
-    });
 
     fn min_abs(a: f64, b: f64) -> f64 {
         if a.abs() < b.abs() {
@@ -144,10 +133,24 @@ fn field_strength_range(bb: AABB) -> Range<f64> {
         )),
     };
 
-    vertices
-        .map(field_strength)
-        .min_by(|a, b| a.partial_cmp(b).unwrap())
-        .unwrap()..max
+    fn max_abs(a: f64, b: f64) -> f64 {
+        if a.abs() > b.abs() {
+            a
+        } else {
+            b
+        }
+    }
+
+    // I have proven that the minimum must be at a vertex.
+    // The furthest vertex seems intuitively correct.
+
+    let min = field_strength(Vec3::new(
+        max_abs(bb.start().x, bb.end().x),
+        max_abs(bb.start().y, bb.end().y),
+        max_abs(bb.start().z, bb.end().z),
+    ));
+
+   min .. max
 }
 
 #[cfg(test)]
