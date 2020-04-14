@@ -67,13 +67,14 @@ fn field_strength_range(bb: AABB) -> Range<f64> {
     // - projection of the origin onto an edge
     // - the vertices
 
-    let bb2 = bb.clone();
-    let vertices = vec![bb.start.x, bb.end.x].into_iter().flat_map(move |x| {
-        let bb3 = bb2.clone();
-        vec![bb2.start.y, bb2.end.y].into_iter().flat_map(move |y| {
-            vec![bb3.start.z, bb3.end.z]
-                .into_iter()
-                .map(move |z| Vec3::new(x, y, z))
+    let xends = vec![bb.start.x, bb.end.x].into_iter();
+    let yends = vec![bb.start.y, bb.end.y].into_iter();
+    let zends = vec![bb.start.z, bb.end.z].into_iter();
+
+    let vertices = xends.flat_map(|x| {
+        yends.clone().flat_map({
+            let zends = &zends;
+            move |y| zends.clone().map(move |z| Vec3::new(x, y, z))
         })
     });
 
