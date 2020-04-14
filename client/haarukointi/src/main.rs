@@ -7,6 +7,15 @@ use rustfft::FFTplanner;
 use std::collections::VecDeque;
 mod config;
 
+#[cfg(test)]
+extern crate quickcheck;
+#[cfg(test)]
+#[macro_use]
+extern crate quickcheck_macros;
+#[cfg(test)]
+#[macro_use]
+extern crate float_cmp;
+
 fn get_field_strengths_squared(frequencies: &[usize]) -> Vec<f64> {
     let mut axes = [[Complex::zero(); 1000]; 3];
 
@@ -139,6 +148,46 @@ fn field_strength_range(bb: AABB) -> Range<f64> {
         .map(field_strength)
         .min_by(|a, b| a.partial_cmp(b).unwrap())
         .unwrap()..max
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn brute_force_field_strength_range(bb: AABB) -> Range<f64> {
+        let xs = vec![bb.start().x, bb.end().x, 0.0].into_iter();
+        let ys = vec![bb.start().y, bb.end().y, 0.0].into_iter();
+        let zs = vec![bb.start().z, bb.end().z, 0.0].into_iter();
+
+        let criticals = xs
+            .flat_map(|x| {
+                ys.clone().flat_map({
+                    let zs = &zs;
+                    move |y| zs.clone().map(move |z| Vec3::new(x, y, z))
+                })
+            })
+            .filter(|c| bb.contains(c))
+            .map(field_strength);
+
+        criticals
+            .clone()
+            .min_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap()..criticals.max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap()
+    }
+
+    #[quickcheck]
+    fn field_strength_range_same_as_checking_all_critical_points(start: Vec3, size: f64) -> bool {
+        let size = size.abs();
+        let bb = start..=start + Vec3::new(size, size, size);
+
+        let actual = field_strength_range(bb.clone());
+        let correct = brute_force_field_strength_range(bb);
+
+        // Despite the large ULPS this fails in cases where some corner
+        // is very close to zero because of inaccuracy in field_strength.
+        approx_eq!(f64, actual.start, correct.start, ulps = 10)
+            && approx_eq!(f64, actual.end, correct.end, ulps = 10)
+    }
 }
 
 fn subdivide(bb: &AABB) -> impl Iterator<Item = AABB> {
