@@ -61,7 +61,7 @@ fn field_strength(p: Vec3) -> f64 {
         // We can interpret zero as approaching zero from the positive side
         std::f64::INFINITY
     } else {
-        let cosine = p.normalize().dot(&Vec3::new(0.0, 0.0, 1.0));
+        let cosine = p.z / r;
         r.pow(-6) * (3.0 * cosine * cosine + 1.0)
     }
 }
