@@ -56,13 +56,13 @@ use std::ops::Range;
 type AABB = std::ops::RangeInclusive<Vec3>;
 
 fn field_strength(p: Vec3) -> f64 {
-    let r = p.norm();
-    if r == 0.0 {
+    let r2 = p.norm_squared();
+    if r2 == 0.0 {
         // We can interpret zero as approaching zero from the positive side
         std::f64::INFINITY
     } else {
-        let cosine = p.z / r;
-        r.pow(-6) * (3.0 * cosine * cosine + 1.0)
+        let cos_times_norm = p.z;
+        (3.0 * cos_times_norm * cos_times_norm / r2 + 1.0) / (r2 * r2 * r2)
     }
 }
 
@@ -151,8 +151,6 @@ mod tests {
         let actual = field_strength_range(bb.clone());
         let correct = brute_force_field_strength_range(bb);
 
-        // Despite the large ULPS this fails in cases where some corner
-        // is very close to zero because of inaccuracy in field_strength.
         approx_eq!(f64, actual.start, correct.start, ulps = 10)
             && approx_eq!(f64, actual.end, correct.end, ulps = 10)
     }
