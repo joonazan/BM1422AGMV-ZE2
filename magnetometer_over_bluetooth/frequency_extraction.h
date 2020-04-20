@@ -22,11 +22,10 @@ class Comb {
   RingBuffer<T, size> rb;
 public:
   T process(T input) {
-    auto res = input + -1 * rb.get_last();
+    auto res = input - rb.get_last();
     rb.insert(input);
     return res;
   }
-
 };
 
 template <typename T, uint32_t size>
