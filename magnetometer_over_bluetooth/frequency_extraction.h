@@ -17,6 +17,8 @@ public:
   }
 };
 
+// You only need one Comb if all you Resonators are the same size.
+// The Comb only remembers the recent past, so it never needs to be restarted.
 template <typename T, uint32_t size>
 class Comb {
   RingBuffer<T, size> rb;
@@ -28,6 +30,15 @@ public:
   }
 };
 
+// The Resonator finds the square of the magnitude in a given DFT bucket.
+// It must be fed with values from a Comb of the same size.
+//
+// The bucket 1 is for waves that span `size` samples. #2 has twice the frequency
+// #3 three times etc.
+// bucket_frequency = bucket_no * samplerate / size
+//
+// The Resonator may accumulate some error as values propagate infinitely.
+// TODO find out the amount of error. Test if subtracting an ULP like proposed in the original paper helps.
 template <typename T, uint32_t size>
 class Resonator {
   const T factor_re;
