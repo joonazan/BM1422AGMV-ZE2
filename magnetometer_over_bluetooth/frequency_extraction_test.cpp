@@ -4,11 +4,11 @@
 #include <iostream>
 
 int main() {
-  Comb<double, 50> comb;
-  Resonator<double, 50> resonator(1);
+  Comb<double, 100> comb;
+  Resonator<double, 100> resonator(1.0/50);
 
   for (int i = 0; i < 1000; i++) {
-    std::cout << sqrt(resonator.process(comb.process(sin(i / 25.0 * M_PI)))) << std::endl;
+    std::cout << sqrt(resonator.process(comb.process(6.4*sin(i / 25.0 * M_PI)))) << std::endl;
   }
 }
 

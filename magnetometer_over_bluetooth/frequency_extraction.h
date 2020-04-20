@@ -30,12 +30,12 @@ public:
   }
 };
 
-// The Resonator finds the square of the magnitude in a given DFT bucket.
-// It must be fed with values from a Comb of the same size.
+// The Resonator finds a certain frequency span's amplitude squared.
+// The span's width is sample rate / `size`.
+// The constructor argument is the desired frequency divided by the sample rate.
 //
-// The bucket 1 is for waves that span `size` samples. #2 has twice the frequency
-// #3 three times etc.
-// bucket_frequency = bucket_no * samplerate / size
+// The Resonator must be fed with values from a Comb of the same size.
+// The first `size` outputs are garbage and should be ignored.
 //
 // The Resonator may accumulate some error as values propagate infinitely.
 // TODO find out the amount of error. Test if subtracting an ULP like proposed in the original paper helps.
@@ -46,17 +46,19 @@ class Resonator {
   T previous_output_re = 0;
   T previous_output_im = 0;
 public:
-  Resonator(T k) :
-    factor_re(cos(2*M_PI*k/size)),
-    factor_im(sin(2*M_PI*k/size)) {}
+  Resonator(T freq) :
+    factor_re(cos(2*M_PI*freq)),
+    factor_im(sin(2*M_PI*freq)) {}
 
   T process(T input) {
-    auto re = previous_output_re * factor_re - previous_output_im * factor_im + input;
-    auto im = previous_output_re * factor_im + previous_output_im * factor_re;
+    const auto re = previous_output_re * factor_re - previous_output_im * factor_im + input;
+    const auto im = previous_output_re * factor_im + previous_output_im * factor_re;
 
     previous_output_re = re;
     previous_output_im = im;
 
-    return re*re + im*im;
+    const auto re_scaled = re / size * 2;
+    const auto im_scaled = im / size * 2;
+    return re_scaled*re_scaled + im_scaled*im_scaled;
   }
 };
