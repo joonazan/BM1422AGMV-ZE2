@@ -1,5 +1,6 @@
 #include <FastBLE.h>
 #include <I2C_DMAC.h>
+#include "reading.h"
 
 void initialize_magnetometer(uint8_t slave_address) {
   I2C.begin(400000, REG_ADDR_8BIT, PIO_SERCOM_ALT);
@@ -14,17 +15,11 @@ void initialize_magnetometer(uint8_t slave_address) {
   I2C.writeByte(slave_address, 0x1d, 0x40);
 }
 
-struct FieldStrength {
-  int16_t x;
-  int16_t y;
-  int16_t z;
-};
+struct Reading get_reading(uint8_t slave_address) {
+  Reading r;
+  I2C.readBytes(slave_address, 0x10, reinterpret_cast<uint8_t*>(&r), sizeof(Reading));
 
-struct FieldStrength get_reading(uint8_t slave_address) {
-  FieldStrength fs;
-  I2C.readBytes(slave_address, 0x10, reinterpret_cast<uint8_t*>(&fs), sizeof(FieldStrength));
-
-  return fs;
+  return r;
 }
 
 // 0xe if address select is soldered to the right
@@ -39,7 +34,7 @@ void setup() {
 }
 
 void loop() {
-  auto field_strength_out = BLE.add_output<FieldStrength>(UUID_128(0x2d, 0x71, 0xa2, 0x59, 0xb4, 0x58, 0xc8, 0x12, 0x99, 0x99, 0x43, 0x95, 0x12, 0x2f, 0x46, 0x59));
+  auto field_strength_out = BLE.add_output<Reading>(UUID_128(0x2d, 0x71, 0xa2, 0x59, 0xb4, 0x58, 0xc8, 0x12, 0x99, 0x99, 0x43, 0x95, 0x12, 0x2f, 0x46, 0x59));
   BLE.start(UUID_128(0x2a, 0x71, 0xa2, 0x59, 0xb4, 0x58, 0xc8, 0x12, 0x99, 0x99, 0x43, 0x95, 0x12, 0x2f, 0x46, 0x59), NULL);
 
   while (1) {
