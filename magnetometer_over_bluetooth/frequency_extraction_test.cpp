@@ -1,3 +1,5 @@
+#ifndef ARDUINO
+
 #include "frequency_extraction.h"
 #include <iostream>
 
@@ -9,3 +11,5 @@ int main() {
     std::cout << sqrt(resonator.process(comb.process(sin(i / 25.0 * M_PI)))) << std::endl;
   }
 }
+
+#endif
