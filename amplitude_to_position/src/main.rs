@@ -9,6 +9,7 @@ extern crate float_cmp;
 
 mod interface;
 mod octtree;
+mod slicer;
 use octtree::Octtree;
 use rand_distr::{UnitBall, Normal, Distribution};
 use crate::interface::*;
