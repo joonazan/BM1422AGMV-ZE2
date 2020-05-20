@@ -1,12 +1,3 @@
-#[cfg(test)]
-extern crate quickcheck;
-#[cfg(test)]
-#[macro_use]
-extern crate quickcheck_macros;
-#[cfg(test)]
-#[macro_use]
-extern crate float_cmp;
-
 use crate::interface::*;
 
 use std::ops::RangeInclusive;
@@ -68,7 +59,7 @@ fn field_strength_range(bb: AABB) -> RangeInclusive<f64> {
 mod tests {
     use super::*;
 
-    fn brute_force_field_strength_range(bb: AABB) -> Range<f64> {
+    fn brute_force_field_strength_range(bb: AABB) -> RangeInclusive<f64> {
         let xs = vec![bb.start().x, bb.end().x, 0.0].into_iter();
         let ys = vec![bb.start().y, bb.end().y, 0.0].into_iter();
         let zs = vec![bb.start().z, bb.end().z, 0.0].into_iter();
@@ -86,7 +77,7 @@ mod tests {
         criticals
             .clone()
             .min_by(|a, b| a.partial_cmp(b).unwrap())
-            .unwrap()..criticals.max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap()
+            .unwrap()..=criticals.max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap()
     }
 
     #[quickcheck]
@@ -97,8 +88,8 @@ mod tests {
         let actual = field_strength_range(bb.clone());
         let correct = brute_force_field_strength_range(bb);
 
-        approx_eq!(f64, actual.start, correct.start, ulps = 10)
-            && approx_eq!(f64, actual.end, correct.end, ulps = 10)
+        approx_eq!(f64, *actual.start(), *correct.start(), ulps = 10)
+            && approx_eq!(f64, *actual.end(), *correct.end(), ulps = 10)
     }
 }
 

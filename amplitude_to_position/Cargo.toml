@@ -9,3 +9,8 @@ nalgebra = "0.21"
 quickcheck = "0.9"
 rand = "*"
 rand_distr = "*"
+
+[dev-dependencies]
+quickcheck_macros = "*"
+float-cmp = "0.8"
+nalgebra = { version = "0.21", features = ["arbitrary"] }

@@ -1,3 +1,12 @@
+#[cfg(test)]
+extern crate quickcheck;
+#[cfg(test)]
+#[macro_use]
+extern crate quickcheck_macros;
+#[cfg(test)]
+#[macro_use]
+extern crate float_cmp;
+
 mod interface;
 mod octtree;
 use octtree::Octtree;
