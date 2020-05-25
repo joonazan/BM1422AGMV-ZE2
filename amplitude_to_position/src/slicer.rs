@@ -69,3 +69,17 @@ mod tests {
         x == 0.0 && z == 0.0 || approx_eq!(f64, radius(z, h), x, epsilon = 0.00000001)
     }
 }
+
+pub struct NaiveSlicer {
+    magnet_positions: [Vec3; 4],
+}
+
+impl AmplitudesToPosition for NaiveSlicer {
+    fn new(magnet_positions: [Vec3; 4], _: f64) -> Self {
+        Self { magnet_positions }
+    }
+
+    fn locate(&self, amplitudes_squared: [f64; 4]) -> Vec3 {
+        unimplemented!()
+    }
+}

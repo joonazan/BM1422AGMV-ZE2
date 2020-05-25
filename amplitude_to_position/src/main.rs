@@ -10,9 +10,10 @@ extern crate float_cmp;
 mod interface;
 mod octtree;
 mod slicer;
-use octtree::Octtree;
-use rand_distr::{UnitBall, Normal, Distribution};
 use crate::interface::*;
+use octtree::Octtree;
+use rand_distr::{Distribution, Normal, UnitBall};
+use slicer::NaiveSlicer;
 
 fn main() {
     let max_dist = 10.0;
@@ -26,6 +27,7 @@ fn main() {
     let noise = Normal::new(0.0, 0.00001).unwrap();
 
     let ot = Octtree::new(magnet_positions, max_dist);
+    let ns = NaiveSlicer::new(magnet_positions, max_dist);
 
     let mut rng = rand::thread_rng();
     let real_pos: Vec3 = UnitBall.sample(&mut rng).into();
@@ -38,7 +40,7 @@ fn main() {
         measurements[i] = with_noise * with_noise;
     }
 
-    let reconstructed_pos = ot.locate(measurements);
+    let judge = |m: &dyn AmplitudesToPosition| (real_pos - m.locate(measurements)).norm_squared();
 
-    println!("squared error {}", (real_pos - reconstructed_pos).norm_squared());
+    println!("squared error {} {}", judge(&ot), judge(&ns));
 }

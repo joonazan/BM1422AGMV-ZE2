@@ -14,6 +14,8 @@ pub fn field_strength(p: Vec3) -> f64 {
 }
 
 pub trait AmplitudesToPosition {
-    fn new(magnet_positions: [Vec3; 4], max_distance: f64) -> Self;
+    fn new(magnet_positions: [Vec3; 4], max_distance: f64) -> Self
+    where
+        Self: Sized;
     fn locate(&self, amplitudes_squared: [f64; 4]) -> Vec3;
 }
