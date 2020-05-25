@@ -68,6 +68,64 @@ mod tests {
         let h = field_strength([x, 0.0, z].into());
         x == 0.0 && z == 0.0 || approx_eq!(f64, radius(z, h), x, epsilon = 0.00000001)
     }
+
+    #[quickcheck]
+    fn intersection_point_correct(positions: nalgebra::Vector4<Vec2>, point: Vec2) -> bool {
+        let mut dists = [0.0; 4];
+        let mut ps = [Vec2::new(0.0, 0.0); 4];
+        for i in 0..4 {
+            dists[i] = (positions[i] - point).norm();
+            ps[i] = positions[i];
+        }
+        let computed = PositionOptimizer::new(&ps).best_pos(dists);
+        approx_eq!(f64, (point - computed).norm_squared(), 0.0)
+    }
+}
+
+type Vec2 = nalgebra::Vector2<f64>;
+
+/// Takes four points and does some precomputation. Then, it can quickly
+/// find a point based on distance to those four points. It minimizes squared error.
+///
+/// Based on multilateration from Localization in Wireless Sensor Networks.
+struct PositionOptimizer {
+    qt: nalgebra::Matrix2x3<f64>,
+    b_fixed_part: Vec3,
+    ymul1: f64,
+    xmul0: f64,
+    ymul0: f64,
+}
+
+impl PositionOptimizer {
+    fn new(centers: &[Vec2; 4]) -> Self {
+        let n = nalgebra::Matrix2x4::from_columns(centers);
+
+        let a = (n.fixed_columns::<nalgebra::U3>(1)
+            - nalgebra::Matrix2x3::from_columns(&[n.column(0); 3]))
+        .transpose();
+
+        let (q, r) = a.qr().unpack();
+        let a = 2.0 * r;
+
+        Self {
+            qt: q.transpose(),
+            b_fixed_part: Vec3::from_iterator(
+                (1..=3).map(|i| n.column(i).norm_squared() - n.column(0).norm_squared()),
+            ),
+            ymul1: a[3],
+            xmul0: a[0],
+            ymul0: a[2],
+        }
+    }
+    fn best_pos(&self, radii: [f64; 4]) -> Vec2 {
+        let b = Vec3::from_iterator((1..=3).map(|i| radii[0] * radii[0] - radii[i] * radii[i]))
+            + self.b_fixed_part;
+        let b = self.qt * b;
+
+        let y = b[1] / self.ymul1;
+        let x = (b[0] - self.ymul0 * y) / self.xmul0;
+        Vec2::new(x, y)
+    }
 }
 
 pub struct NaiveSlicer {
