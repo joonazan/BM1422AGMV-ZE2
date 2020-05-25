@@ -141,3 +141,24 @@ impl AmplitudesToPosition for NaiveSlicer {
         unimplemented!()
     }
 }
+
+#[cfg(test)]
+mod full_test {
+    use super::*;
+
+    #[quickcheck]
+    fn works_for_exact_measurements(p: Vec3) -> bool {
+        let magnet_positions = [
+            [0.0, 0.0, 0.0].into(),
+            [0.5, 0.0, 0.0].into(),
+            [0.5, 0.5, 0.0].into(),
+            [0.0, 0.5, 0.3].into(),
+        ];
+        let mut asq = [0.0; 4];
+        for i in 0..4 {
+            asq[i] = field_strength(p - magnet_positions[i]);
+        }
+        let p2 = NaiveSlicer::new(magnet_positions, 100.0).locate(asq);
+        approx_eq!(f64, (p - p2).norm_squared(), 0.0)
+    }
+}
