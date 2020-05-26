@@ -9,6 +9,7 @@ nalgebra = "0.21"
 quickcheck = "0.9"
 rand = "*"
 rand_distr = "*"
+float-ord = "0.2"
 
 [dev-dependencies]
 quickcheck_macros = "*"

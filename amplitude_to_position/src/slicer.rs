@@ -1,26 +1,19 @@
 use crate::interface::*;
 
-fn radius(z: f64, amplitude_squared: f64) -> f64 {
-    // solves H² * (z² + r²)^4 - r² - 4z² = 0 for r
-
-    // In polar coordinates, the equation for field strength is
-    // 2H² * r^6 = 5 - 3 cos(2x)
-    // By solving for r, we can see that r follows
-    // the inverse cube root of field strength.
-    //
-    // Note that the r of the polar representation is not the radius we are looking for.
-    // However, we can see that the inverse cube root of the field strength
-    // uniformly scales everything.
-    let inv_scale = amplitude_squared.powf(1.0 / 6.0);
-    let scale = 1.0 / inv_scale;
-    let z = (z * inv_scale).abs();
-
-    // TODO this info is relevant for intelligently choosing what heights to check
-    // (z² + r²)^4 - r² - 4z² = 0 is capsule shaped.
-    // height of the top:
-    // (z² + 0)^4 - 0 - 4z² = 0
-    // z^6 = 4z²
-    // z^3 = 2
+/// Solves (z² + r²)^4 - r² - 4z² = 0, which is the equation relating height and
+/// radius when the field strength is one.
+///
+/// In polar coordinates, the equation relating field strength and position is
+/// 2H² * r^6 = 5 - 3 cos(2x)
+/// By solving for r, we can see that r follows
+/// the inverse cube root of field strength.
+///
+/// Note that the r of the polar representation is not the radius we are looking for.
+/// However, we can see that the inverse cube root of the field strength
+/// uniformly scales everything, so we only need to scale this function's input and
+/// output to get values for all field strengths.
+fn radius(z: f64) -> f64 {
+    let z = z.abs();
 
     // I am using Halley's Method instead of Newton's because Newton's
     // converges only asymptotically on a zero with zero derivative. The
@@ -53,7 +46,7 @@ fn radius(z: f64, amplitude_squared: f64) -> f64 {
         r = r.max(0.0);
     }
 
-    r * scale
+    r
 }
 
 #[cfg(test)]
@@ -66,7 +59,14 @@ mod tests {
     fn radius_computed_correctly(x: f64, z: f64) -> bool {
         let x = x.abs();
         let h = field_strength([x, 0.0, z].into());
-        x == 0.0 && z == 0.0 || approx_eq!(f64, radius(z, h), x, epsilon = 0.00000001)
+        let inv_scale = h.powf(1.0 / 6.0);
+        x == 0.0 && z == 0.0
+            || approx_eq!(
+                f64,
+                radius(z * inv_scale) / inv_scale,
+                x,
+                epsilon = 0.00000001
+            )
     }
 
     #[quickcheck]
@@ -77,7 +77,7 @@ mod tests {
             dists[i] = (positions[i] - point).norm();
             ps[i] = positions[i];
         }
-        let computed = PositionOptimizer::new(&ps).best_pos(dists);
+        let computed = PositionOptimizer::new(&ps).best_pos(&dists);
         approx_eq!(f64, (point - computed).norm_squared(), 0.0)
     }
 }
@@ -117,7 +117,7 @@ impl PositionOptimizer {
             ymul0: a[2],
         }
     }
-    fn best_pos(&self, radii: [f64; 4]) -> Vec2 {
+    fn best_pos(&self, radii: &[f64; 4]) -> Vec2 {
         let b = Vec3::from_iterator((1..=3).map(|i| radii[0] * radii[0] - radii[i] * radii[i]))
             + self.b_fixed_part;
         let b = self.qt * b;
@@ -130,15 +130,68 @@ impl PositionOptimizer {
 
 pub struct NaiveSlicer {
     magnet_positions: [Vec3; 4],
+    planar_solver: PositionOptimizer,
 }
 
 impl AmplitudesToPosition for NaiveSlicer {
     fn new(magnet_positions: [Vec3; 4], _: f64) -> Self {
-        Self { magnet_positions }
+        let mut without_z = [Vec2::new(0.0, 0.0); 4];
+        for i in 0..4 {
+            without_z[i] = magnet_positions[i].xy();
+        }
+        Self {
+            magnet_positions,
+            planar_solver: PositionOptimizer::new(&without_z),
+        }
     }
 
     fn locate(&self, amplitudes_squared: [f64; 4]) -> Vec3 {
-        unimplemented!()
+        // The surface with a certain field strength is capsule shaped.
+        // It is always the same shape but scaled by the inverse cube root of field strength.
+        // See radius for details.
+        // Its top and bottom are at cube root of two.
+
+        let mut scale = [0.0; 4];
+        let mut inv_scale = [0.0; 4];
+        for i in 0..4 {
+            inv_scale[i] = amplitudes_squared[i].powf(1.0 / 6.0);
+            scale[i] = 1.0 / inv_scale[i];
+        }
+
+        let mut minz = std::f64::MAX;
+        let mut maxz = std::f64::MIN;
+        for (scale, center) in scale.iter().zip(&self.magnet_positions) {
+            let half_height = 2f64.cbrt() * scale;
+            let new_min = center.z - half_height;
+            let new_max = center.z + half_height;
+            if new_min < minz {
+                minz = new_min;
+            }
+            if new_max > maxz {
+                maxz = new_max;
+            }
+        }
+
+        let iters = 10000;
+        let mut radii = [0.0; 4];
+        (0..iters)
+            .map(|i| {
+                let z = minz + i as f64 * (maxz - minz) / (iters - 1) as f64;
+                for i in 0..4 {
+                    radii[i] = scale[i] * radius(inv_scale[i] * (z - self.magnet_positions[i].z));
+                }
+                let xy = self.planar_solver.best_pos(&radii);
+                Vec3::new(xy.x, xy.y, z)
+            })
+            .min_by_key(|pos| {
+                let mut error = 0.0;
+                for i in 0..4 {
+                    let v = field_strength(pos - self.magnet_positions[i]);
+                    error += (amplitudes_squared[i] - v).abs();
+                }
+                float_ord::FloatOrd(error)
+            })
+            .unwrap()
     }
 }
 
@@ -159,6 +212,7 @@ mod full_test {
             asq[i] = field_strength(p - magnet_positions[i]);
         }
         let p2 = NaiveSlicer::new(magnet_positions, 100.0).locate(asq);
-        approx_eq!(f64, (p - p2).norm_squared(), 0.0)
+        println!("{} {}", p, p2);
+        approx_eq!(f64, (p - p2).norm_squared(), 0.0, epsilon = 0.1)
     }
 }
