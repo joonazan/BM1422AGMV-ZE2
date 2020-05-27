@@ -127,7 +127,7 @@ impl AmplitudesToPosition for Octtree {
     fn locate(&self, amplitudes_squared: [f64; 4]) -> Vec3 {
         let mut rects = vec![self.search_area.clone()];
 
-        for _ in 0..35 {
+        while rects[0].end().x - rects[0].start().x > std::f64::EPSILON {
             let new: Vec<AABB> = rects
                 .iter()
                 .flat_map(subdivide)
