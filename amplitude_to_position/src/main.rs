@@ -42,5 +42,7 @@ fn main() {
 
     let judge = |m: &dyn AmplitudesToPosition| (real_pos - m.locate(measurements)).norm_squared();
 
-    println!("squared error {} {}", judge(&ot), judge(&ns));
+    println!("squared error");
+    println!("octtree {}", judge(&ot));
+    println!("slicer  {}", judge(&ns));
 }
