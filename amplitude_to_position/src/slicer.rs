@@ -158,17 +158,18 @@ impl AmplitudesToPosition for NaiveSlicer {
             scale[i] = 1.0 / inv_scale[i];
         }
 
-        let mut minz = std::f64::MAX;
-        let mut maxz = std::f64::MIN;
+        // The highest bottom and lowest top delimit the search space
+        let mut minz = std::f64::MIN;
+        let mut maxz = std::f64::MAX;
         for (scale, center) in scale.iter().zip(&self.magnet_positions) {
             let half_height = 2f64.cbrt() * scale;
-            let new_min = center.z - half_height;
-            let new_max = center.z + half_height;
-            if new_min < minz {
-                minz = new_min;
+            let new_bottom = center.z - half_height;
+            let new_top = center.z + half_height;
+            if new_bottom > minz {
+                minz = new_bottom;
             }
-            if new_max > maxz {
-                maxz = new_max;
+            if new_top < maxz {
+                maxz = new_top;
             }
         }
 
@@ -213,6 +214,6 @@ mod full_test {
         }
         let p2 = NaiveSlicer::new(magnet_positions, 100.0).locate(asq);
         println!("{} {}", p, p2);
-        approx_eq!(f64, (p - p2).norm_squared(), 0.0, epsilon = 0.1)
+        approx_eq!(f64, (p - p2).norm_squared(), 0.0, epsilon = 0.001)
     }
 }
