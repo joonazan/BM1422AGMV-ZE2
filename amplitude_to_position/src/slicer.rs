@@ -90,7 +90,7 @@ type Vec2 = nalgebra::Vector2<f64>;
 /// Based on multilateration from Localization in Wireless Sensor Networks.
 struct PositionOptimizer {
     qt: nalgebra::Matrix2x3<f64>,
-    b_fixed_part: Vec3,
+    offset: Vec2,
     ymul: f64,
 }
 
@@ -113,18 +113,21 @@ impl PositionOptimizer {
             *x /= a[3];
         }
 
+        let b_fixed_part = Vec3::from_iterator(
+            (1..=3).map(|i| n.column(i).norm_squared() - n.column(0).norm_squared()),
+        );
+
         Self {
             qt,
-            b_fixed_part: Vec3::from_iterator(
-                (1..=3).map(|i| n.column(i).norm_squared() - n.column(0).norm_squared()),
-            ),
+            offset: qt * b_fixed_part,
             ymul: a[2] / a[0],
         }
     }
+
     fn best_pos(&self, radii: &[f64; 4]) -> Vec2 {
-        let b = Vec3::from_iterator((1..=3).map(|i| radii[0] * radii[0] - radii[i] * radii[i]))
-            + self.b_fixed_part;
-        let b = self.qt * b;
+        let b = self.qt
+            * Vec3::from_iterator((1..=3).map(|i| radii[0] * radii[0] - radii[i] * radii[i]))
+            + self.offset;
 
         let y = b[1];
         let x = b[0] - self.ymul * y;
