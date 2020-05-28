@@ -91,8 +91,8 @@ type Vec2 = nalgebra::Vector2<f64>;
 struct PositionOptimizer {
     qt: nalgebra::Matrix2x3<f64>,
     b_fixed_part: Vec3,
-    ymul1: f64,
-    xmul0: f64,
+    inv_ymul1: f64,
+    inv_xmul0: f64,
     ymul0: f64,
 }
 
@@ -112,8 +112,8 @@ impl PositionOptimizer {
             b_fixed_part: Vec3::from_iterator(
                 (1..=3).map(|i| n.column(i).norm_squared() - n.column(0).norm_squared()),
             ),
-            ymul1: a[3],
-            xmul0: a[0],
+            inv_ymul1: 1.0 / a[3],
+            inv_xmul0: 1.0 / a[0],
             ymul0: a[2],
         }
     }
@@ -122,8 +122,8 @@ impl PositionOptimizer {
             + self.b_fixed_part;
         let b = self.qt * b;
 
-        let y = b[1] / self.ymul1;
-        let x = (b[0] - self.ymul0 * y) / self.xmul0;
+        let y = b[1] * self.inv_ymul1;
+        let x = (b[0] - self.ymul0 * y) * self.inv_xmul0;
         Vec2::new(x, y)
     }
 }
