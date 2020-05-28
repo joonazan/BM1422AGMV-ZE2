@@ -91,9 +91,7 @@ type Vec2 = nalgebra::Vector2<f64>;
 struct PositionOptimizer {
     qt: nalgebra::Matrix2x3<f64>,
     b_fixed_part: Vec3,
-    inv_ymul1: f64,
-    inv_xmul0: f64,
-    ymul0: f64,
+    ymul: f64,
 }
 
 impl PositionOptimizer {
@@ -107,14 +105,20 @@ impl PositionOptimizer {
         let (q, r) = a.qr().unpack();
         let a = 2.0 * r;
 
+        let mut qt = q.transpose();
+        for x in qt.row_mut(0).iter_mut() {
+            *x /= a[0];
+        }
+        for x in qt.row_mut(1).iter_mut() {
+            *x /= a[3];
+        }
+
         Self {
-            qt: q.transpose(),
+            qt,
             b_fixed_part: Vec3::from_iterator(
                 (1..=3).map(|i| n.column(i).norm_squared() - n.column(0).norm_squared()),
             ),
-            inv_ymul1: 1.0 / a[3],
-            inv_xmul0: 1.0 / a[0],
-            ymul0: a[2],
+            ymul: a[2] / a[0],
         }
     }
     fn best_pos(&self, radii: &[f64; 4]) -> Vec2 {
@@ -122,8 +126,8 @@ impl PositionOptimizer {
             + self.b_fixed_part;
         let b = self.qt * b;
 
-        let y = b[1] * self.inv_ymul1;
-        let x = (b[0] - self.ymul0 * y) * self.inv_xmul0;
+        let y = b[1];
+        let x = b[0] - self.ymul * y;
         Vec2::new(x, y)
     }
 }
