@@ -1,5 +1,8 @@
 #pragma once
 
+// Portable implementation of Sliding DFT
+// See "The sliding DFT" in IEEE Signal Processing Magazine, April 2003
+
 #include <stdint.h>
 #include <math.h>
 
