@@ -26,7 +26,7 @@ One more pain point of magnetometers reading the data. The BM1422AGMV-ZE only su
 
 ### Isolating the frequencies
 
-The signal processing happens on the chip that reads the magnetometers, as it is computationally inexpensive and reduces the amount of data by an order of magnitude. The code for the microprocessor is in `magnetometer_over_bluetooth`. (TODO name it better)
+The signal processing happens on the chip that reads the magnetometers, as it is computationally inexpensive and reduces the amount of data by an order of magnitude. The code for the microprocessor is in `magnetometer_peripheral`.
 
 A magnetometer measures the magnetic field on three perpendicular axes. The readings are not centered around zero magnetic field and changing the hardware in the slightest offsets them. Because of that, we cannot compute the unfiltered field strength with the Pythagorean Theorem. Each axis is filtered separately and then combined. This happens in `field_strength.h`.
 
