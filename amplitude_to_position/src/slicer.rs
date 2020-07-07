@@ -12,7 +12,7 @@ use crate::interface::*;
 /// However, we can see that the inverse cube root of the field strength
 /// uniformly scales everything, so we only need to scale this function's input and
 /// output to get values for all field strengths.
-fn radius(z: f64) -> f64 {
+pub fn radius(z: f64) -> f64 {
     let z = z.abs();
 
     // I am using Halley's Method instead of Newton's because Newton's

@@ -3,6 +3,7 @@ name = "amplitude_to_position"
 version = "0.1.0"
 authors = ["Joonatan Saarhelo <joon.saar@gmail.com>"]
 edition = "2018"
+default-run = "amplitude_to_position"
 
 [dependencies]
 nalgebra = "0.21"
@@ -15,3 +16,7 @@ float-ord = "0.2"
 quickcheck_macros = "*"
 float-cmp = "0.8"
 nalgebra = { version = "0.21", features = ["arbitrary"] }
+
+[[bin]]
+name = "illustrate"
+path = "src/illustrate.rs"

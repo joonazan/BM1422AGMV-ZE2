@@ -82,14 +82,18 @@ Bad because:
 
 Implemented in `slicer.rs`. Slices the problem into a bunch of very cheaply solved circle intersection problems, takes the slice with least error.
 
-The biggest possible slope of the error vs. z is `4 / cbrt(2)` because that is the worst that could happen when moving on the z-axis and the best solution either has the same x and y or has less error.
+![isosurfaces](amplitude_to_position/field.svg)
+
+I define the *scale* as `1 / cbrt(field strength)`. That is how much you have to scale the field strength = 1 surface to get the surface for that field strength.
+
+The biggest possible slope of the error (in scale) vs. z is `4 / cbrt(2)`, which occurs when moving up when directly above the pole of all four magnets. The best solution is of course the same or better.
 
 Bad because:
 
 - Can only support configurations where all magnets point the same way.
-- The slices' solutions are not optimal. It turns out that growing each circle has a different (maybe even nonlinear) cost. Meanwhile, the solutions minimize squared error in radius.
+- The slices' solutions are not optimal. You can see in the illustration that the inner isosurfaces are further apart along the red line than the outer ones. So the error is proportional to change in radius only at height zero. 
 
-There is still some hope for this if there is a way to find the best solution to a slice.
+There is still some hope for this if there is a way to find the best solution to a slice. Quality could be improved just by taking into account that increasing radius is cheaper higher up.
 
 ## Running the whole stack
 
