@@ -27,17 +27,15 @@ impl NewestFieldStrengths {
     }
     fn start(&self) {
         let s = self.0.clone();
-        std::thread::spawn(move || {
-            loop {
-                let mut line = String::new();
-                std::io::stdin().read_line(&mut line).expect("read error");
-                let x = line
-                    .split_whitespace()
-                    .map(|x| x.parse::<f64>().expect("parse error"))
-                    .collect::<Vec<f64>>();
+        std::thread::spawn(move || loop {
+            let mut line = String::new();
+            std::io::stdin().read_line(&mut line).expect("read error");
+            let x = line
+                .split_whitespace()
+                .map(|x| x.parse::<f64>().expect("parse error"))
+                .collect::<Vec<f64>>();
 
-                *s.lock().unwrap() = x;
-            }
+            *s.lock().unwrap() = x;
         });
     }
 }
@@ -197,7 +195,7 @@ fn main() {
 
     let field_strengths_squared = NewestFieldStrengths::new();
 
-    while let Some(_) = draw_piston_window(&mut window, |b| {
+    while draw_piston_window(&mut window, |b| {
         let root = b.into_drawing_area();
         root.fill(&WHITE).unwrap();
         let views = root.split_evenly((2, 2));
@@ -271,7 +269,7 @@ fn main() {
 
         let mut rects = vec![search_area.clone()];
 
-        for i in 0..100 {
+        for _ in 0..100 {
             let new: Vec<AABB> = rects
                 .iter()
                 .flat_map(subdivide)
@@ -296,5 +294,7 @@ fn main() {
         }
 
         Ok(())
-    }) {}
+    })
+    .is_some()
+    {}
 }
