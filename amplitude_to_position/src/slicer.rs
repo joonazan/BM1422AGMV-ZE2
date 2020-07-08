@@ -180,26 +180,37 @@ impl AmplitudesToPosition for NaiveSlicer {
             }
         }
 
-        let iters = 10000;
         let mut radii = [0.0; 4];
-        (0..iters)
-            .map(|i| {
-                let z = minz + i as f64 * (maxz - minz) / (iters - 1) as f64;
-                for i in 0..4 {
-                    radii[i] = scale[i] * radius(inv_scale[i] * (z - self.magnet_positions[i].z));
-                }
-                let xy = self.planar_solver.best_pos(&radii);
-                Vec3::new(xy.x, xy.y, z)
-            })
-            .min_by_key(|pos| {
-                let mut error = 0.0;
-                for i in 0..4 {
-                    let v = field_strength(pos - self.magnet_positions[i]);
-                    error += (amplitudes_squared[i] - v).abs();
-                }
-                float_ord::FloatOrd(error)
-            })
-            .unwrap()
+        let mut z = minz;
+        let mut minerr = std::f64::MAX;
+        let mut best = Vec3::new(0.0, 0.0, 0.0);
+        while z < maxz {
+            for i in 0..4 {
+                radii[i] = scale[i] * radius(inv_scale[i] * (z - self.magnet_positions[i].z));
+            }
+            let xy = self.planar_solver.best_pos(&radii);
+            let pos = Vec3::new(xy.x, xy.y, z);
+
+            let mut error_in_scale = 0.0;
+            for i in 0..4 {
+                error_in_scale += (scale[i]
+                    - 1.0 / field_strength(pos - self.magnet_positions[i]).powf(1.0 / 6.0))
+                .abs();
+            }
+
+            z += error_in_scale * 2.0f64.cbrt() / 4.0;
+
+            if minerr > error_in_scale {
+                minerr = error_in_scale;
+                best = pos;
+            }
+
+            if minerr < 0.000001 {
+                break;
+            }
+        }
+
+        best
     }
 }
 
