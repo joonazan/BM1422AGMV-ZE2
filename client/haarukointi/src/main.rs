@@ -1,10 +1,8 @@
 use nalgebra::{Vector2, Vector3};
 use piston_window::WindowSettings;
 use plotters::prelude::*;
-use rustfft::num_complex::Complex;
-use rustfft::num_traits::{Pow, Zero};
-use rustfft::FFTplanner;
 use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
 mod config;
 
 #[cfg(test)]
@@ -16,38 +14,32 @@ extern crate quickcheck_macros;
 #[macro_use]
 extern crate float_cmp;
 
-fn get_field_strengths_squared(frequencies: &[usize]) -> Vec<f64> {
-    let mut axes = [[Complex::zero(); 1000]; 3];
+struct NewestFieldStrengths(Arc<Mutex<Vec<f64>>>);
 
-    for i in 0..1000 {
-        let mut line = String::new();
-        std::io::stdin().read_line(&mut line).expect("read error");
-        let nums = line
-            .split_whitespace()
-            .map(|x| x.parse::<f64>().expect("parse error"))
-            .collect::<Vec<f64>>();
-
-        for j in 0..3 {
-            axes[j][i] = Complex::new(nums[j], 0.0);
-        }
+impl NewestFieldStrengths {
+    pub fn new() -> Self {
+        let me = NewestFieldStrengths(Arc::new(Mutex::new(vec![0.0; 4])));
+        me.start();
+        me
     }
-
-    let fft = FFTplanner::new(false).plan_fft(1000);
-    let mut out = [Complex::zero(); 1000];
-
-    let mut sum = vec![0.0; frequencies.len()];
-    for a in &mut axes {
-        fft.process(a, &mut out);
-        for (i, x) in frequencies
-            .iter()
-            .map(|&i| (out[i] / 1000.0).norm_sqr())
-            .enumerate()
-        {
-            sum[i] += x;
-        }
+    pub fn get(&self) -> Vec<f64> {
+        self.0.lock().unwrap().clone()
     }
+    fn start(&self) {
+        let s = self.0.clone();
+        std::thread::spawn(move || {
+            loop {
+                let mut line = String::new();
+                std::io::stdin().read_line(&mut line).expect("read error");
+                let x = line
+                    .split_whitespace()
+                    .map(|x| x.parse::<f64>().expect("parse error"))
+                    .collect::<Vec<f64>>();
 
-    sum
+                *s.lock().unwrap() = x;
+            }
+        });
+    }
 }
 
 type Vec3 = Vector3<f64>;
@@ -203,6 +195,8 @@ fn main() {
     const STRENGTH_PLOT_LEN: usize = 100;
     let mut previous_strengths: Vec<VecDeque<f64>> = vec![vec![0.0; 100].into(); frequencies.len()];
 
+    let field_strengths_squared = NewestFieldStrengths::new();
+
     while let Some(_) = draw_piston_window(&mut window, |b| {
         let root = b.into_drawing_area();
         root.fill(&WHITE).unwrap();
@@ -240,7 +234,7 @@ fn main() {
             draw_aabb(&((s - r)..=(s + r)), BLACK.to_rgba());
         });
 
-        let mut strengths = get_field_strengths_squared(&frequencies);
+        let mut strengths = field_strengths_squared.get();
         for s in &mut strengths {
             *s /= config.magnet_strength;
         }

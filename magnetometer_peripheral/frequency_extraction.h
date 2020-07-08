@@ -7,7 +7,7 @@
 #include <math.h>
 
 template <typename T, uint32_t size>
-class RingBuffer {
+class FixedSizeQueue {
   T buffer[size] = {0};
   uint32_t current = 0;
 public:
@@ -24,7 +24,7 @@ public:
 // The Comb only remembers the recent past, so it never needs to be restarted.
 template <typename T, uint32_t size>
 class Comb {
-  RingBuffer<T, size> rb;
+  FixedSizeQueue<T, size> rb;
 public:
   T process(T input) {
     auto res = input - rb.get_last();

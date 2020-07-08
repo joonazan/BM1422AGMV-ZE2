@@ -7,7 +7,7 @@ class MyDelegate(DefaultDelegate):
 
     def handleNotification(self, handle, data):
         if handle == readings.valHandle:
-            print(*struct.unpack('hhh', data))
+            print(*struct.unpack('ffff', data), flush=True)
 
 p = Peripheral("3C:71:BF:CB:1E:42")
 p.setDelegate(MyDelegate())

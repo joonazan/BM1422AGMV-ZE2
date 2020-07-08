@@ -5,7 +5,6 @@ authors = ["Saarhelo Joonatan <joonatan.saarhelo.aalto.fi>"]
 edition = "2018"
 
 [dependencies]
-rustfft = "3.0"
 plotters = { version = "0.2", features = ["piston"] }
 piston_window = "*"
 ron = "0.5"
