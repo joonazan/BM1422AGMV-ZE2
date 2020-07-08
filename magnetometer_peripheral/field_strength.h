@@ -2,34 +2,28 @@
 #include "frequency_extraction.h"
 #include "reading.h"
 
-constexpr uint32_t N = 1000;
+constexpr uint32_t DELAY = 200;
+constexpr float SAMPLE_RATE = 1000.0;
+
+#define RESONATOR_TEMPLATE \
+  { \
+   {30.0 / SAMPLE_RATE}, \
+   {50.0 / SAMPLE_RATE}, \
+   {70.0 / SAMPLE_RATE}, \
+   {90.0 / SAMPLE_RATE}, \
+  }
 
 struct FieldStrengthsSquared {
   float data[4] = {0};
 };
 
 class FieldStrengthExtractor {
-  Comb<int16_t, N> combs[3];
-  Resonator<float, N> resonators[3][4] =
+  Comb<int16_t, DELAY> combs[3];
+  Resonator<float, DELAY> resonators[3][4] =
     {
-     {
-      {45.0 / 1000.0},
-      {65.0 / 1000.0},
-      {80.0 / 1000.0},
-      {95.0 / 1000.0},
-     },
-     {
-      {45.0 / 1000.0},
-      {65.0 / 1000.0},
-      {80.0 / 1000.0},
-      {95.0 / 1000.0},
-     },
-     {
-      {45.0 / 1000.0},
-      {65.0 / 1000.0},
-      {80.0 / 1000.0},
-      {95.0 / 1000.0},
-     }
+     RESONATOR_TEMPLATE,
+     RESONATOR_TEMPLATE,
+     RESONATOR_TEMPLATE,
     };
 
 public:

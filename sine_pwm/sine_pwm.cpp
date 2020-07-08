@@ -43,10 +43,10 @@ constexpr Table<N> sine_table() {
     table_ptr_##name = table_start_##name; \
   }
 
-SINE_SETUP(a, "r2", 45)
-SINE_SETUP(b, "r3", 65)
-SINE_SETUP(c, "r4", 80)
-SINE_SETUP(d, "r5", 95)
+SINE_SETUP(a, "r2", 30)
+SINE_SETUP(b, "r3", 50)
+SINE_SETUP(c, "r4", 70)
+SINE_SETUP(d, "r5", 90)
 
 int main() {
   // Set pin 11 to output
