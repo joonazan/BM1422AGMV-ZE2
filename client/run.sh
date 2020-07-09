@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-python bluetooth_receiver.py | $(cd haarukointi && cargo run --release)
+python3 bluetooth_receiver.py | $(cd haarukointi && cargo run --release)
