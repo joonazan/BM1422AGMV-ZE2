@@ -9,10 +9,11 @@ plotters = { version = "0.2", features = ["piston"] }
 piston_window = "*"
 ron = "0.5"
 serde = "1.0"
-nalgebra = "0.19"
+nalgebra = "0.21"
+amplitude_to_position = {path = "../../amplitude_to_position"}
 
 [dev-dependencies]
 quickcheck = "0.9"
 quickcheck_macros = "0.9"
-nalgebra = {features = ["arbitrary"]}
+nalgebra = { version = "0.21", features = ["arbitrary"]}
 float-cmp = "0.6"
