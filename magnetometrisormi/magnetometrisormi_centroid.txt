@@ -1,0 +1,7 @@
+Designator Footprint Package                Mid X      Mid Y  Rotation
+C1         1u        C_0402_1005Metric   115.8000mm   -80.3150mm  270.0000
+C2         1u        C_0402_1005Metric   112.2000mm   -80.6000mm   90.0000
+C3         0.01u     C_0402_1005Metric   117.0000mm   -80.3150mm  270.0000
+R1         4k7       R_0402_1005Metric   112.2000mm   -82.6000mm  270.0000
+R2         4k7       R_0402_1005Metric   113.2000mm   -84.1000mm  180.0000
+
