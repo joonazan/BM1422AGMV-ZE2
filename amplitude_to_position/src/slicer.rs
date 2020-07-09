@@ -198,7 +198,7 @@ impl AmplitudesToPosition for NaiveSlicer {
                 .abs();
             }
 
-            z += error_in_scale * 2.0f64.cbrt() / 4.0;
+            z += error_in_scale * 2.0f64.cbrt() / 8.0;
 
             if minerr > error_in_scale {
                 minerr = error_in_scale;
