@@ -6,7 +6,7 @@ edition = "2018"
 default-run = "amplitude_to_position"
 
 [dependencies]
-nalgebra = "0.21"
+nalgebra = "0.27"
 quickcheck = "0.9"
 rand = "*"
 rand_distr = "*"
@@ -15,7 +15,7 @@ float-ord = "0.2"
 [dev-dependencies]
 quickcheck_macros = "*"
 float-cmp = "0.8"
-nalgebra = { version = "0.21", features = ["arbitrary"] }
+nalgebra = { version = "0.27", features = ["arbitrary"] }
 
 [[bin]]
 name = "illustrate"
